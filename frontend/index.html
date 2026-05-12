@@ -776,6 +776,144 @@
     [data-theme="light"] .toast-error { background: #fff0f0; color: #7f1d1d; }
     [data-theme="light"] .toast-warn { background: #fffbeb; color: #78350f; }
     [data-theme="light"] .toast-info { background: #eff6ff; color: #1e40af; }
+
+    /* ── FUTURISTIC LAYER ─────────────────────────────── */
+
+    /* dot-grid background */
+    body {
+      background-image: radial-gradient(circle, rgba(0,212,255,.08) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    /* brand glow + terminal cursor */
+    .brand {
+      text-shadow: 0 0 12px rgba(0,212,255,.6), 0 0 28px rgba(0,212,255,.25);
+      letter-spacing: .14em;
+      position: relative;
+    }
+    .brand::after {
+      content: "_";
+      animation: cursorBlink 1.1s step-end infinite;
+      color: var(--accent);
+      margin-left: 2px;
+    }
+    @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* topbar bottom glow line */
+    .topbar::after {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+    .topbar { position: relative; }
+
+    /* card inner glow */
+    .card {
+      box-shadow: inset 0 0 20px rgba(0,212,255,.04), 0 0 0 1px rgba(0,212,255,.08);
+    }
+
+    /* metric label spacing */
+    .metric-label { letter-spacing: .08em; }
+
+    /* total value glow */
+    .total-value {
+      text-shadow: 0 0 18px rgba(0,212,255,.45);
+    }
+
+    /* pnl text glows */
+    .positive { text-shadow: 0 0 10px rgba(0,255,136,.5); }
+    .negative { text-shadow: 0 0 10px rgba(255,77,77,.5); }
+
+    /* section title gradient underline */
+    .section-title {
+      position: relative;
+      padding-bottom: 6px;
+    }
+    .section-title::after {
+      content: "";
+      position: absolute;
+      left: 0; bottom: 0;
+      width: 48px; height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      border-radius: 1px;
+    }
+
+    /* source panel colored left borders */
+    .source-panel[data-source="zerodha"]  { border-left: 2px solid #7c6ff7; }
+    .source-panel[data-source="coin"]     { border-left: 2px solid #00d4ff; }
+    .source-panel[data-source="binance"]  { border-left: 2px solid #f0b90b; }
+    .source-panel[data-source="indmoney"] { border-left: 2px solid #00c78e; }
+
+    /* table header gradient */
+    th {
+      background: linear-gradient(180deg, #151520 0%, #0e0e16 100%) !important;
+      letter-spacing: .05em;
+    }
+
+    /* row hover left flash */
+    tr:hover td:first-child {
+      box-shadow: inset 3px 0 0 var(--accent);
+      transition: box-shadow .15s ease;
+    }
+
+    /* button hover glow */
+    .btn:hover, .btn-sm:hover, .tab-btn:hover {
+      box-shadow: 0 0 14px rgba(0,212,255,.35);
+    }
+
+    /* custom scrollbars */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,212,255,.25); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,.5); }
+    * { scrollbar-width: thin; scrollbar-color: rgba(0,212,255,.25) transparent; }
+
+    /* toast slide-in */
+    @keyframes toastIn { from { transform: translateY(18px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .toast { animation: toastIn .22s ease; }
+
+    /* loader pulse glow */
+    @keyframes loaderPulse {
+      0%,100% { text-shadow: 0 0 6px rgba(0,212,255,.3); }
+      50%      { text-shadow: 0 0 22px rgba(0,212,255,.9); }
+    }
+    .loader { animation: loaderPulse 1.6s ease-in-out infinite; }
+
+    /* chart box radial depth */
+    .chart-box {
+      background: radial-gradient(ellipse at 50% 110%, rgba(0,212,255,.06) 0%, transparent 65%),
+                  var(--card);
+    }
+
+    /* analysis card top accent */
+    .analysis-grid .card {
+      border-top: 2px solid var(--accent);
+    }
+
+    /* badge neon glow */
+    .badge-green  { box-shadow: 0 0 8px rgba(0,255,136,.4); }
+    .badge-red    { box-shadow: 0 0 8px rgba(255,77,77,.4); }
+    .badge-blue   { box-shadow: 0 0 8px rgba(0,212,255,.4); }
+
+    /* health value glow */
+    .health-value { text-shadow: 0 0 10px rgba(0,212,255,.4); }
+
+    /* disable dark effects in light mode */
+    [data-theme="light"] body { background-image: none; }
+    [data-theme="light"] .brand { text-shadow: none; }
+    [data-theme="light"] .total-value { text-shadow: none; }
+    [data-theme="light"] .positive { text-shadow: none; }
+    [data-theme="light"] .negative { text-shadow: none; }
+    [data-theme="light"] .card { box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    [data-theme="light"] .badge-green,
+    [data-theme="light"] .badge-red,
+    [data-theme="light"] .badge-blue { box-shadow: none; }
+    [data-theme="light"] th { background: var(--card-2) !important; }
+    [data-theme="light"] .chart-box { background: var(--card); }
+    [data-theme="light"] .analysis-grid .card { border-top-color: var(--accent); }
+
   </style>
 </head>
 <body>
@@ -1168,7 +1306,7 @@
         const value = rows.reduce((sum, holding) => sum + (Number(holding.current_value_inr) || 0), 0);
         const pnl = rows.reduce((sum, holding) => sum + (Number(holding.unrealised_pnl) || 0), 0);
         return `
-          <section class="source-panel">
+          <section class="source-panel" data-source="${escapeHtml(source.key)}">
             <div class="source-panel-head">
               <div class="source-panel-title">${escapeHtml(source.label)}</div>
               <div class="source-panel-meta">${rows.length} ${rows.length === 1 ? "row" : "rows"}</div>
