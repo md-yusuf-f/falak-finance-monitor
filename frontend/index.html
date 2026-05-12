@@ -900,6 +900,34 @@
     /* health value glow */
     .health-value { text-shadow: 0 0 10px rgba(0,212,255,.4); }
 
+    /* live button */
+    .btn-live { position: relative; }
+    .btn-live.active {
+      background: rgba(0,255,136,.15);
+      border-color: #00ff88;
+      color: #00ff88;
+    }
+    .btn-live.active::before {
+      content: "";
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #00ff88;
+      margin-right: 6px;
+      box-shadow: 0 0 6px #00ff88;
+      animation: livePulse 1.2s ease-in-out infinite;
+      vertical-align: middle;
+    }
+    @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+    .live-countdown {
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 28px;
+      display: inline-block;
+      font-variant-numeric: tabular-nums;
+    }
+    .live-countdown.active { color: #00ff88; }
+
     /* disable dark effects in light mode */
     [data-theme="light"] body { background-image: none; }
     [data-theme="light"] .brand { text-shadow: none; }
@@ -934,6 +962,8 @@
       </div>
       <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <button id="refreshBtn" class="btn" type="button">Refresh</button>
+        <button id="liveBtn" class="btn btn-live" type="button">Live</button>
+        <span id="liveCountdown" class="live-countdown"></span>
         <button class="btn" type="button" onclick="window.open('/auth/kite/login','_blank')">Kite Login</button>
         <button id="themeToggle" class="btn" type="button">Light</button>
       </div>
@@ -1064,7 +1094,11 @@
       chart: null,
       chartMode: "type",
       loadingCount: 0,
-      toastTimer: null
+      toastTimer: null,
+      liveMode: false,
+      liveRefreshTimer: null,
+      liveTickTimer: null,
+      liveSecsLeft: 0
     };
 
     const el = {
@@ -1096,7 +1130,9 @@
       alertThreshold: document.getElementById("alertThreshold"),
       addAlertBtn: document.getElementById("addAlertBtn"),
       overlay: document.getElementById("overlay"),
-      toast: document.getElementById("toast")
+      toast: document.getElementById("toast"),
+      liveBtn: document.getElementById("liveBtn"),
+      liveCountdown: document.getElementById("liveCountdown")
     };
 
     const SRC_KEYS = ["zerodha", "coin", "binance", "indmoney"];
@@ -1683,7 +1719,49 @@
       renderAnalysis();
     }
 
+    /* ── Live P&L ── */
+    const LIVE_INTERVAL_SECS = 30;
+
+    function _liveSetCountdown(secs) {
+      state.liveSecsLeft = secs;
+      el.liveCountdown.textContent = secs > 0 ? `${secs}s` : "";
+      el.liveCountdown.classList.toggle("active", secs > 0);
+    }
+
+    function _liveStartTick() {
+      clearInterval(state.liveTickTimer);
+      _liveSetCountdown(LIVE_INTERVAL_SECS);
+      state.liveTickTimer = setInterval(() => {
+        _liveSetCountdown(state.liveSecsLeft - 1);
+        if (state.liveSecsLeft <= 0) _liveSetCountdown(LIVE_INTERVAL_SECS);
+      }, 1000);
+    }
+
+    function startLive() {
+      state.liveMode = true;
+      el.liveBtn.classList.add("active");
+      el.liveBtn.textContent = "Live";
+      refreshHoldings(false).catch(() => {});
+      _liveStartTick();
+      state.liveRefreshTimer = setInterval(() => {
+        refreshHoldings(false).catch(() => {});
+        _liveStartTick();
+      }, LIVE_INTERVAL_SECS * 1000);
+    }
+
+    function stopLive() {
+      state.liveMode = false;
+      clearInterval(state.liveRefreshTimer);
+      clearInterval(state.liveTickTimer);
+      state.liveRefreshTimer = null;
+      state.liveTickTimer = null;
+      el.liveBtn.classList.remove("active");
+      el.liveBtn.textContent = "Live";
+      _liveSetCountdown(0);
+    }
+
     el.refreshBtn.addEventListener("click", () => refreshHoldings(true).catch(() => {}));
+    el.liveBtn.addEventListener("click", () => { state.liveMode ? stopLive() : startLive(); });
     el.analysisBtn.addEventListener("click", () => runAnalysis().catch(() => {}));
     el.themeToggle.addEventListener("click", () => {
       const curr = document.documentElement.getAttribute("data-theme") || "dark";
