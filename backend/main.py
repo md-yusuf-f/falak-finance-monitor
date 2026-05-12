@@ -29,21 +29,23 @@ from contextlib import asynccontextmanager
 if __package__:
     from .db import (
         init_db, save_snapshot, get_latest_snapshot, get_history,
-        get_alerts as db_get_alerts, save_alert, delete_alert,
+        get_alerts as db_get_alerts, save_alert, delete_alert, get_candles,
     )
     from .models import PortfolioSnapshot, AnalysisResult, Alert
     from .collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades
     from .analysis import run_analysis
+    from .analysis.indicators import compute_indicators
     from .notifications.telegram import TelegramNotifier
     from .scheduler import Scheduler
 else:
     from db import (
         init_db, save_snapshot, get_latest_snapshot, get_history,
-        get_alerts as db_get_alerts, save_alert, delete_alert,
+        get_alerts as db_get_alerts, save_alert, delete_alert, get_candles,
     )
     from models import PortfolioSnapshot, AnalysisResult, Alert
     from collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades
     from analysis import run_analysis
+    from analysis.indicators import compute_indicators
     from notifications.telegram import TelegramNotifier
     from scheduler import Scheduler
 
@@ -300,6 +302,33 @@ async def create_alert(alert: Alert):
 @app.delete("/api/alerts/{alert_id}", status_code=204)
 async def remove_alert(alert_id: int):
     await delete_alert(alert_id)
+
+
+@app.get("/api/market/{symbol}/candles")
+async def get_market_candles(symbol: str, interval: str = "15m", limit: int = 100):
+    if not symbol:
+        raise HTTPException(status_code=422, detail="Symbol cannot be empty")
+    if not (1 <= limit <= 500):
+        raise HTTPException(status_code=422, detail="Limit must be between 1 and 500")
+    
+    rows = await get_candles(symbol.upper(), interval, limit)
+    return {"symbol": symbol.upper(), "interval": interval, "candles": rows}
+
+
+@app.get("/api/market/{symbol}/indicators")
+async def get_market_indicators(symbol: str, interval: str = "15m"):
+    if not symbol:
+        raise HTTPException(status_code=422, detail="Symbol cannot be empty")
+    
+    candles = await get_candles(symbol.upper(), interval, limit=200)
+    if len(candles) < 50:
+        raise HTTPException(status_code=422, detail="Insufficient candle data (need ≥ 50)")
+    
+    try:
+        return compute_indicators(candles)
+    except Exception as exc:
+        log.error("Error computing indicators for %s: %s", symbol, exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 if __name__ == "__main__":

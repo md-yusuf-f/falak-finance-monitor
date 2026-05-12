@@ -26,6 +26,21 @@ CREATE TABLE IF NOT EXISTS alerts (
 )
 """
 
+_CREATE_CANDLES = """
+CREATE TABLE IF NOT EXISTS candles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    symbol TEXT NOT NULL,
+    interval TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    open REAL NOT NULL,
+    high REAL NOT NULL,
+    low REAL NOT NULL,
+    close REAL NOT NULL,
+    volume REAL NOT NULL,
+    UNIQUE(symbol, interval, timestamp)
+)
+"""
+
 
 async def init_db() -> None:
     db_parent = Path(DB_PATH).expanduser().parent
@@ -34,6 +49,7 @@ async def init_db() -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(_CREATE_SNAPSHOTS)
         await db.execute(_CREATE_ALERTS)
+        await db.execute(_CREATE_CANDLES)
         await db.commit()
 
 
@@ -91,3 +107,35 @@ async def delete_alert(alert_id: int) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM alerts WHERE id = ?", (alert_id,))
         await db.commit()
+
+
+async def save_candles(rows: list[dict]) -> None:
+    if not rows:
+        return
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.executemany(
+            """
+            INSERT OR IGNORE INTO candles (symbol, interval, timestamp, open, high, low, close, volume)
+            VALUES (:symbol, :interval, :timestamp, :open, :high, :low, :close, :volume)
+            """,
+            rows,
+        )
+        await db.commit()
+
+
+async def get_candles(symbol: str, interval: str, limit: int = 100) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT symbol, interval, timestamp, open, high, low, close, volume
+            FROM candles
+            WHERE symbol = ? AND interval = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (symbol, interval, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+    # Return oldest-first
+    return [dict(r) for r in reversed(rows)]

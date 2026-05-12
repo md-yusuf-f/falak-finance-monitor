@@ -1,6 +1,10 @@
 import os
 import pytest
 import pytest_asyncio
+import sys
+from unittest.mock import MagicMock
+
+# pandas and ta are real deps — no mocking needed here
 
 # Set required env vars before importing app modules
 os.environ.setdefault("KITE_API_KEY", "test_key")
