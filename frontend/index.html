@@ -1,0 +1,1189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Falak Finance Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --card: #111118;
+      --card-2: #15151f;
+      --line: rgba(255, 255, 255, 0.11);
+      --line-strong: rgba(0, 212, 255, 0.38);
+      --text: #f3f7fb;
+      --muted: #8d95a5;
+      --accent: #00d4ff;
+      --green: #16d681;
+      --red: #ff4d61;
+      --amber: #f0b90b;
+      --blue: #3861fb;
+      --purple: #7b2ff7;
+      --crypto: #f0b90b;
+      --shadow: rgba(0, 0, 0, 0.36);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "JetBrains Mono", monospace;
+      letter-spacing: 0;
+    }
+
+    body {
+      min-width: 320px;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    .app {
+      width: min(1540px, 100%);
+      margin: 0 auto;
+      padding: 18px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(230px, 1.1fr) minmax(210px, 0.9fr) minmax(170px, 0.75fr) minmax(180px, 0.8fr) auto;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      background: var(--card);
+      border: 1px solid var(--line-strong);
+      box-shadow: 0 18px 60px var(--shadow);
+    }
+
+    .brand {
+      color: var(--accent);
+      font-weight: 800;
+      font-size: clamp(18px, 2.5vw, 28px);
+      text-transform: uppercase;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .total-value {
+      font-size: clamp(24px, 3.4vw, 42px);
+      font-weight: 800;
+      line-height: 1.05;
+      color: #ffffff;
+      overflow-wrap: anywhere;
+    }
+
+    .pnl-value {
+      font-size: clamp(18px, 2vw, 28px);
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .timestamp {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .btn {
+      min-height: 42px;
+      padding: 0 14px;
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      cursor: pointer;
+      text-transform: uppercase;
+      font-weight: 700;
+      transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+    }
+
+    .btn:hover,
+    .btn:focus-visible {
+      background: var(--accent);
+      color: #00151a;
+      outline: none;
+    }
+
+    .btn.secondary {
+      background: var(--accent);
+      color: #00151a;
+    }
+
+    .btn.secondary:hover,
+    .btn.secondary:focus-visible {
+      background: transparent;
+      color: var(--accent);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .stat-number {
+      font-size: clamp(18px, 2.1vw, 30px);
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .holdings-section {
+      margin-top: 14px;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+      gap: 14px;
+      margin-top: 14px;
+      align-items: stretch;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .section-subtle {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      scrollbar-width: none;
+    }
+
+    .table-wrap::-webkit-scrollbar {
+      display: none;
+    }
+
+    .source-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .source-panel {
+      border: 1px solid var(--line);
+      background: #0e0e14;
+      min-width: 0;
+    }
+
+    .source-panel .table-wrap {
+      max-height: 280px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .source-panel-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #101019;
+    }
+
+    .source-panel-title {
+      color: #ffffff;
+      font-weight: 800;
+      text-transform: uppercase;
+      overflow-wrap: anywhere;
+    }
+
+    .source-panel-meta {
+      color: var(--muted);
+      font-size: 11px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    table {
+      width: 100%;
+      min-width: 900px;
+      border-collapse: collapse;
+      background: #0e0e14;
+    }
+
+    th,
+    td {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 10px 9px;
+      text-align: left;
+      font-size: 12px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    th:last-child,
+    td:last-child { border-right: 0; }
+
+    tr:last-child td { border-bottom: 0; }
+
+    th {
+      color: var(--accent);
+      background: #101019;
+      cursor: pointer;
+      user-select: none;
+      text-transform: uppercase;
+      font-size: 11px;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tbody tr:hover {
+      background: rgba(0, 212, 255, 0.045);
+    }
+
+    .number {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+    .neutral { color: var(--muted); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 2px 8px;
+      border: 1px solid currentColor;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    .source-zerodha { background: #3861fb; border-color: #3861fb; }
+    .source-coin { background: #7b2ff7; border-color: #7b2ff7; }
+    .source-binance { background: #f0b90b; border-color: #f0b90b; color: #111118; }
+    .source-default { background: #2a2a36; border-color: #4a4a5b; }
+
+    .badge-green { color: var(--green); background: rgba(22, 214, 129, 0.1); }
+    .badge-amber { color: var(--amber); background: rgba(240, 185, 11, 0.1); }
+    .badge-red { color: var(--red); background: rgba(255, 77, 97, 0.1); }
+    .badge-blue { color: var(--accent); background: rgba(0, 212, 255, 0.09); }
+
+    .chart-panel {
+      display: grid;
+      grid-template-rows: auto minmax(220px, 1fr) auto;
+      height: 460px;
+      margin-top: 14px;
+    }
+
+    .chart-box {
+      min-height: 270px;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    .chart-box canvas {
+      max-width: 100%;
+      max-height: 330px;
+    }
+
+    .legend {
+      display: grid;
+      gap: 9px;
+      margin-top: 8px;
+    }
+
+    .legend-row,
+    .allocation-row {
+      display: grid;
+      grid-template-columns: 92px minmax(80px, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      display: inline-block;
+      margin-right: 7px;
+      vertical-align: -1px;
+    }
+
+    .analysis {
+      margin-top: 14px;
+    }
+
+    .analysis-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 15px 0 12px;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .mini-table {
+      min-width: 0;
+      border: 1px solid var(--line);
+    }
+
+    .mini-table th,
+    .mini-table td {
+      white-space: normal;
+      line-height: 1.45;
+    }
+
+    .mini-table th:first-child,
+    .mini-table td:first-child {
+      width: 90px;
+    }
+
+    .health {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: var(--card-2);
+      border: 1px solid var(--line);
+    }
+
+    .health-value {
+      color: var(--accent);
+      font-size: clamp(16px, 2vw, 24px);
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .bar-track {
+      height: 12px;
+      background: #0a0a0f;
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+    }
+
+    .allocation-list {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .copy-block {
+      border: 1px solid var(--line);
+      background: var(--card-2);
+      padding: 12px;
+      margin-top: 10px;
+      color: #d8dde8;
+      font-size: 12px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .meter {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .meter-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .meter-track {
+      height: 24px;
+      border: 1px solid var(--line);
+      background: #0a0a0f;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--green), var(--amber), var(--red));
+    }
+
+    .flags {
+      display: grid;
+      gap: 10px;
+    }
+
+    .flag {
+      border: 1px solid var(--line);
+      background: var(--card-2);
+      padding: 10px;
+      display: grid;
+      gap: 7px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .flag-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .empty {
+      min-height: 120px;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      background: #0e0e14;
+      padding: 18px;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .error-box {
+      border: 1px solid var(--red);
+      background: #21070b;
+      color: #ffdce1;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+
+    .footer {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(5, 5, 8, 0.72);
+      z-index: 20;
+    }
+
+    .overlay.active { display: grid; }
+
+    .loader {
+      border: 1px solid var(--line-strong);
+      background: #0d0d14;
+      color: var(--accent);
+      padding: 18px 22px;
+      font-weight: 800;
+      text-transform: uppercase;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      max-width: min(420px, calc(100vw - 36px));
+      display: none;
+      background: #24080c;
+      border: 1px solid var(--red);
+      color: #ffd8dd;
+      padding: 12px 14px;
+      font-size: 12px;
+      line-height: 1.5;
+      z-index: 30;
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.4);
+    }
+
+    .toast.active { display: block; }
+
+    @media (max-width: 1120px) {
+      .topbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .topbar .actions {
+        grid-column: span 2;
+      }
+
+      .analysis-grid,
+      .source-panels {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-panel {
+        height: auto;
+        min-height: 390px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        padding: 10px;
+      }
+
+      .topbar,
+      .stats,
+      .footer {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar .actions {
+        grid-column: auto;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .card {
+        padding: 12px;
+      }
+
+      .analysis-head {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .legend-row,
+      .allocation-row {
+        grid-template-columns: 82px minmax(70px, 1fr) auto;
+      }
+
+      .source-panel-head {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      .source-panel-meta {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">FALAK FINANCE MONITOR</div>
+      <div>
+        <div class="metric-label">Total INR Value</div>
+        <div id="totalValue" class="total-value">Rs 0</div>
+      </div>
+      <div>
+        <div class="metric-label">P&amp;L</div>
+        <div id="totalPnl" class="pnl-value neutral">Rs 0 (0.00%)</div>
+      </div>
+      <div>
+        <div class="metric-label">Timestamp</div>
+        <div id="timestamp" class="timestamp">No snapshot loaded</div>
+      </div>
+      <div class="actions">
+        <button id="refreshBtn" class="btn" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="Portfolio summary">
+      <article class="card">
+        <div class="metric-label">Equity Value</div>
+        <div id="equityValue" class="stat-number">Rs 0</div>
+      </article>
+      <article class="card">
+        <div class="metric-label">MF Value</div>
+        <div id="mfValue" class="stat-number">Rs 0</div>
+      </article>
+      <article class="card">
+        <div class="metric-label">Crypto Value</div>
+        <div id="cryptoValue" class="stat-number">Rs 0</div>
+      </article>
+      <article class="card">
+        <div class="metric-label">Total P&amp;L</div>
+        <div id="statPnl" class="stat-number neutral">Rs 0</div>
+      </article>
+    </section>
+
+    <section class="card holdings-section">
+      <div class="section-title">
+        <span>Holdings</span>
+        <span id="holdingCount" class="section-subtle">0 rows</span>
+      </div>
+      <div id="holdingsMount"></div>
+    </section>
+
+    <article class="card chart-panel">
+      <div class="section-title">
+        <span>Allocation</span>
+        <span class="section-subtle">Equity / MF / Crypto</span>
+      </div>
+      <div id="chartMount" class="chart-box">
+        <canvas id="allocationChart" aria-label="Allocation doughnut chart"></canvas>
+      </div>
+      <div id="chartLegend" class="legend"></div>
+    </article>
+
+    <section class="analysis">
+      <div class="analysis-head">
+        <div class="section-title" style="margin:0;">AI Analysis</div>
+      </div>
+      <div class="analysis-grid">
+        <article class="card">
+          <div class="section-title">
+            <span>Claude</span>
+            <span class="section-subtle">Verdict</span>
+          </div>
+          <div id="claudeCard"></div>
+        </article>
+
+        <article class="card">
+          <div class="section-title">
+            <span>GPT-4o</span>
+            <span class="section-subtle">Breakdown</span>
+          </div>
+          <div id="gptCard"></div>
+        </article>
+
+        <article class="card">
+          <div class="section-title">
+            <span>Gemini</span>
+            <span class="section-subtle">Risks</span>
+          </div>
+          <div id="geminiCard"></div>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div id="disclaimer">Market data and AI output are informational only and are not financial advice. Verify all figures before taking action.</div>
+      <button id="analysisBtn" class="btn secondary" type="button">Run Analysis</button>
+    </footer>
+  </main>
+
+  <div id="overlay" class="overlay" role="status" aria-live="polite">
+    <div class="loader">Loading</div>
+  </div>
+  <div id="toast" class="toast" role="alert"></div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    const TYPE_KEYS = ["equity", "mf", "crypto"];
+    const TYPE_LABELS = { equity: "Equity", mf: "MF", crypto: "Crypto" };
+    const TYPE_COLORS = { equity: "#00d4ff", mf: "#16d681", crypto: "#f0b90b" };
+
+    const state = {
+      snapshot: null,
+      analysis: null,
+      sortKey: "symbol",
+      sortDir: "asc",
+      chart: null,
+      loadingCount: 0,
+      toastTimer: null
+    };
+
+    const el = {
+      totalValue: document.getElementById("totalValue"),
+      totalPnl: document.getElementById("totalPnl"),
+      timestamp: document.getElementById("timestamp"),
+      refreshBtn: document.getElementById("refreshBtn"),
+      equityValue: document.getElementById("equityValue"),
+      mfValue: document.getElementById("mfValue"),
+      cryptoValue: document.getElementById("cryptoValue"),
+      statPnl: document.getElementById("statPnl"),
+      holdingCount: document.getElementById("holdingCount"),
+      holdingsMount: document.getElementById("holdingsMount"),
+      chartLegend: document.getElementById("chartLegend"),
+      claudeCard: document.getElementById("claudeCard"),
+      gptCard: document.getElementById("gptCard"),
+      geminiCard: document.getElementById("geminiCard"),
+      disclaimer: document.getElementById("disclaimer"),
+      analysisBtn: document.getElementById("analysisBtn"),
+      overlay: document.getElementById("overlay"),
+      toast: document.getElementById("toast")
+    };
+
+    const columns = [
+      ["symbol", "Symbol"],
+      ["quantity", "Qty"],
+      ["avg_cost", "Avg Cost"],
+      ["current_price", "Current"],
+      ["current_value_inr", "Value INR"],
+      ["unrealised_pnl", "P&L"],
+      ["unrealised_pnl_pct", "P&L %"]
+    ];
+
+    const SOURCE_GROUPS = [
+      { key: "zerodha", label: "Zerodha" },
+      { key: "coin", label: "Coin" },
+      { key: "binance", label: "Binance" },
+      { key: "indmoney", label: "INDmoney" }
+    ];
+
+    function formatINR(value) {
+      const numeric = Number(value) || 0;
+      return "Rs " + numeric.toLocaleString("en-IN", {
+        maximumFractionDigits: 0
+      });
+    }
+
+    function formatMoney(value, currency) {
+      const numeric = Number(value) || 0;
+      if ((currency || "").toUpperCase() === "INR" || !currency) return formatINR(numeric);
+      return `${currency} ${numeric.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+    }
+
+    function formatNumber(value, digits = 4) {
+      const numeric = Number(value) || 0;
+      return numeric.toLocaleString("en-IN", { maximumFractionDigits: digits });
+    }
+
+    function formatPct(value) {
+      const numeric = Number(value) || 0;
+      return `${numeric.toFixed(2)}%`;
+    }
+
+    function pnlClass(value) {
+      const numeric = Number(value) || 0;
+      if (numeric > 0) return "positive";
+      if (numeric < 0) return "negative";
+      return "neutral";
+    }
+
+    function normalizeType(type) {
+      const raw = String(type || "").trim().toLowerCase();
+      if (["mutual fund", "mutual_fund", "fund", "mf"].includes(raw)) return "mf";
+      if (["crypto", "coin", "cryptocurrency"].includes(raw)) return "crypto";
+      return "equity";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    function setLoading(active) {
+      state.loadingCount += active ? 1 : -1;
+      state.loadingCount = Math.max(0, state.loadingCount);
+      el.overlay.classList.toggle("active", state.loadingCount > 0);
+    }
+
+    function showToast(message) {
+      el.toast.textContent = message;
+      el.toast.classList.add("active");
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => el.toast.classList.remove("active"), 5200);
+    }
+
+    async function request(path, options = {}, visible = true) {
+      if (visible) setLoading(true);
+      try {
+        const response = await fetch(API_BASE + path, {
+          headers: { "Content-Type": "application/json" },
+          ...options
+        });
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        return await response.json();
+      } catch (error) {
+        showToast(`API failure: ${path} - ${error.message}`);
+        throw error;
+      } finally {
+        if (visible) setLoading(false);
+      }
+    }
+
+    function getHoldings() {
+      return Array.isArray(state.snapshot?.holdings) ? state.snapshot.holdings : [];
+    }
+
+    function allocationFromSnapshot() {
+      const totals = { equity: 0, mf: 0, crypto: 0 };
+      for (const holding of getHoldings()) {
+        totals[normalizeType(holding.type)] += Number(holding.current_value_inr) || 0;
+      }
+      return totals;
+    }
+
+    function renderHeaderAndStats() {
+      const snapshot = state.snapshot || {};
+      const allocation = allocationFromSnapshot();
+      const pnl = Number(snapshot.total_pnl_inr) || 0;
+      const pnlPct = Number(snapshot.total_pnl_pct) || 0;
+
+      el.totalValue.textContent = formatINR(snapshot.total_value_inr);
+      el.totalPnl.textContent = `${formatINR(pnl)} (${formatPct(pnlPct)})`;
+      el.totalPnl.className = `pnl-value ${pnlClass(pnl)}`;
+      el.timestamp.textContent = snapshot.timestamp ? new Date(snapshot.timestamp).toLocaleString("en-IN") : "No snapshot loaded";
+      el.equityValue.textContent = formatINR(allocation.equity);
+      el.mfValue.textContent = formatINR(allocation.mf);
+      el.cryptoValue.textContent = formatINR(allocation.crypto);
+      el.statPnl.textContent = formatINR(pnl);
+      el.statPnl.className = `stat-number ${pnlClass(pnl)}`;
+    }
+
+    function sortedRows(rows) {
+      const sorted = [...rows];
+      const { sortKey, sortDir } = state;
+      sorted.sort((a, b) => {
+        const aVal = a?.[sortKey];
+        const bVal = b?.[sortKey];
+        const aNum = Number(aVal);
+        const bNum = Number(bVal);
+        let result;
+        if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aVal !== "" && bVal !== "") {
+          result = aNum - bNum;
+        } else {
+          result = String(aVal ?? "").localeCompare(String(bVal ?? ""), undefined, { sensitivity: "base" });
+        }
+        return sortDir === "asc" ? result : -result;
+      });
+      return sorted;
+    }
+
+    function sortedHoldings() {
+      return sortedRows(getHoldings());
+    }
+
+    function sourceClass(source) {
+      const key = String(source || "").toLowerCase();
+      if (key === "zerodha") return "source-zerodha";
+      if (key === "coin") return "source-coin";
+      if (key === "binance") return "source-binance";
+      if (key === "indmoney") return "source-default";
+      return "source-default";
+    }
+
+    function cellValue(holding, key) {
+      if (key === "source") {
+        return `<span class="badge ${sourceClass(holding.source)}">${escapeHtml(holding.source || "unknown")}</span>`;
+      }
+      if (key === "type") return escapeHtml(TYPE_LABELS[normalizeType(holding.type)] || holding.type || "Equity");
+      if (key === "quantity") return formatNumber(holding.quantity);
+      if (key === "avg_cost" || key === "current_price") return formatMoney(holding[key], holding.currency);
+      if (key === "current_value_inr") return formatINR(holding.current_value_inr);
+      if (key === "unrealised_pnl") return `<span class="${pnlClass(holding.unrealised_pnl)}">${formatINR(holding.unrealised_pnl)}</span>`;
+      if (key === "unrealised_pnl_pct") return `<span class="${pnlClass(holding.unrealised_pnl_pct)}">${formatPct(holding.unrealised_pnl_pct)}</span>`;
+      return escapeHtml(holding[key] || "");
+    }
+
+    function renderHoldingsTable(rows) {
+      const holdings = sortedRows(rows);
+      if (!holdings.length) {
+        return `<div class="empty">No holdings found for this source.</div>`;
+      }
+
+      const thead = columns.map(([key, label]) => {
+        const marker = state.sortKey === key ? (state.sortDir === "asc" ? " ^" : " v") : "";
+        return `<th data-sort="${key}">${escapeHtml(label + marker)}</th>`;
+      }).join("");
+
+      const tbody = holdings.map(holding => {
+        const cells = columns.map(([key]) => {
+          const numeric = ["quantity", "avg_cost", "current_price", "current_value_inr", "unrealised_pnl", "unrealised_pnl_pct"].includes(key);
+          return `<td class="${numeric ? "number" : ""}">${cellValue(holding, key)}</td>`;
+        }).join("");
+        return `<tr>${cells}</tr>`;
+      }).join("");
+
+      return `<div class="table-wrap"><table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>`;
+    }
+
+    function renderHoldings() {
+      const holdings = getHoldings();
+      el.holdingCount.textContent = `${holdings.length} ${holdings.length === 1 ? "row" : "rows"}`;
+      if (!holdings.length) {
+        el.holdingsMount.innerHTML = `<div class="empty">No holdings found. Refresh after the backend has produced a portfolio snapshot.</div>`;
+        return;
+      }
+
+      const panels = SOURCE_GROUPS.map(source => {
+        const rows = holdings.filter(holding => String(holding.source || "").toLowerCase() === source.key);
+        const value = rows.reduce((sum, holding) => sum + (Number(holding.current_value_inr) || 0), 0);
+        const pnl = rows.reduce((sum, holding) => sum + (Number(holding.unrealised_pnl) || 0), 0);
+        return `
+          <section class="source-panel">
+            <div class="source-panel-head">
+              <div class="source-panel-title">${escapeHtml(source.label)}</div>
+              <div class="source-panel-meta">${rows.length} ${rows.length === 1 ? "row" : "rows"}</div>
+              <div class="source-panel-meta">${formatINR(value)} / <span class="${pnlClass(pnl)}">${formatINR(pnl)}</span></div>
+            </div>
+            ${renderHoldingsTable(rows)}
+          </section>`;
+      }).join("");
+
+      el.holdingsMount.innerHTML = `<div class="source-panels">${panels}</div>`;
+      el.holdingsMount.querySelectorAll("th[data-sort]").forEach(th => {
+        th.addEventListener("click", () => {
+          const key = th.getAttribute("data-sort");
+          if (state.sortKey === key) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+          else {
+            state.sortKey = key;
+            state.sortDir = "asc";
+          }
+          renderHoldings();
+        });
+      });
+    }
+
+    function renderChart() {
+      const allocation = allocationFromSnapshot();
+      const values = TYPE_KEYS.map(key => allocation[key]);
+      const labels = TYPE_KEYS.map(key => TYPE_LABELS[key]);
+      const colors = TYPE_KEYS.map(key => TYPE_COLORS[key]);
+      const total = values.reduce((sum, value) => sum + value, 0);
+      const dataValues = total > 0 ? values : [1, 1, 1];
+
+      if (!state.chart) {
+        state.chart = new Chart(document.getElementById("allocationChart"), {
+          type: "doughnut",
+          data: {
+            labels,
+            datasets: [{
+              data: dataValues,
+              backgroundColor: colors,
+              borderColor: "#0a0a0f",
+              borderWidth: 3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "64%",
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: context => {
+                    const value = values[context.dataIndex] || 0;
+                    const pct = total ? (value / total * 100).toFixed(2) : "0.00";
+                    return `${context.label}: ${formatINR(value)} (${pct}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } else {
+        state.chart.data.datasets[0].data = dataValues;
+        state.chart.update();
+      }
+
+      el.chartLegend.innerHTML = TYPE_KEYS.map(key => {
+        const value = allocation[key];
+        const pct = total ? (value / total * 100).toFixed(2) : "0.00";
+        return `
+          <div class="legend-row">
+            <div><span class="swatch" style="background:${TYPE_COLORS[key]}"></span>${TYPE_LABELS[key]}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${TYPE_COLORS[key]}"></div></div>
+            <div>${formatINR(value)} / ${pct}%</div>
+          </div>`;
+      }).join("");
+    }
+
+    function verdictBadge(verdict) {
+      const value = String(verdict || "REVIEW").toUpperCase();
+      if (value === "HOLD") return `<span class="badge badge-green">HOLD</span>`;
+      if (value === "TRIM") return `<span class="badge badge-red">TRIM</span>`;
+      return `<span class="badge badge-amber">REVIEW</span>`;
+    }
+
+    function severityBadge(severity) {
+      const value = String(severity || "medium").toLowerCase();
+      if (["high", "critical", "red"].includes(value)) return `<span class="badge badge-red">${escapeHtml(value)}</span>`;
+      if (["low", "green"].includes(value)) return `<span class="badge badge-green">${escapeHtml(value)}</span>`;
+      return `<span class="badge badge-amber">${escapeHtml(value)}</span>`;
+    }
+
+    function providerErrorBox(provider, result) {
+      if (!result?.error) return "";
+      return `<div class="error-box">${escapeHtml(provider)} analysis failed: ${escapeHtml(result.error)}</div>`;
+    }
+
+    function renderClaude() {
+      const claude = state.analysis?.claude_verdict;
+      if (!claude) {
+        el.claudeCard.innerHTML = `<div class="empty">No Claude verdict yet. Run analysis after a snapshot is loaded.</div>`;
+        return;
+      }
+      if (claude.error) {
+        el.claudeCard.innerHTML = providerErrorBox("Claude", claude);
+        return;
+      }
+      const verdicts = Array.isArray(claude.verdicts) ? claude.verdicts : [];
+      const rows = verdicts.map(item => `
+        <tr>
+          <td>${escapeHtml(item.symbol || "")}</td>
+          <td>${verdictBadge(item.verdict)}</td>
+          <td>${escapeHtml(item.reason || "")}</td>
+        </tr>`).join("");
+      el.claudeCard.innerHTML = `
+        <div class="health">
+          <div class="metric-label">Overall Health</div>
+          <div class="health-value">${escapeHtml(claude.overall_health || "Unavailable")}</div>
+        </div>
+        ${rows ? `<div class="table-wrap"><table class="mini-table"><thead><tr><th>Symbol</th><th>Verdict</th><th>Reason</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Claude returned no per-holding verdicts.</div>`}
+        ${claude.disclaimer ? `<div class="copy-block">${escapeHtml(claude.disclaimer)}</div>` : ""}`;
+    }
+
+    function renderGpt() {
+      const gpt = state.analysis?.openai_breakdown;
+      if (!gpt) {
+        el.gptCard.innerHTML = `<div class="empty">No GPT-4o breakdown yet. Run analysis after a snapshot is loaded.</div>`;
+        return;
+      }
+      if (gpt.error) {
+        el.gptCard.innerHTML = providerErrorBox("OpenAI", gpt);
+        return;
+      }
+      const allocation = Array.isArray(gpt.allocation) ? gpt.allocation : [];
+      const rows = allocation.map(item => {
+        const pct = Number(item.percentage) || 0;
+        return `
+          <div class="allocation-row">
+            <div>${escapeHtml(item.category || "")}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>
+            <div>${formatINR(item.value_inr)} / ${formatPct(pct)}</div>
+          </div>`;
+      }).join("");
+      el.gptCard.innerHTML = `
+        <div class="allocation-list">${rows || `<div class="empty">GPT-4o returned no allocation rows.</div>`}</div>
+        <div class="copy-block"><strong>vs_ideal</strong><br>${escapeHtml(gpt.vs_ideal || "Unavailable")}</div>
+        <div class="copy-block"><strong>top_observation</strong><br>${escapeHtml(gpt.top_observation || "Unavailable")}</div>`;
+    }
+
+    function renderGemini() {
+      const gemini = state.analysis?.gemini_risks;
+      if (!gemini) {
+        el.geminiCard.innerHTML = `<div class="empty">No Gemini risk readout yet. Run analysis after a snapshot is loaded.</div>`;
+        return;
+      }
+      if (gemini.error) {
+        el.geminiCard.innerHTML = providerErrorBox("Gemini", gemini);
+        return;
+      }
+      const score = Math.max(0, Math.min(10, Number(gemini.risk_score) || 0));
+      const flags = Array.isArray(gemini.flags) ? gemini.flags : [];
+      const flagMarkup = flags.map(item => `
+        <div class="flag">
+          <div class="flag-title">
+            <span>${escapeHtml(item.flag || "")}</span>
+            ${severityBadge(item.severity)}
+          </div>
+          <div class="neutral">${escapeHtml(item.detail || "")}</div>
+        </div>`).join("");
+      el.geminiCard.innerHTML = `
+        <div class="meter">
+          <div class="meter-label"><span>Risk Score</span><strong>${score.toFixed(1)} / 10</strong></div>
+          <div class="meter-track"><div class="meter-fill" style="width:${score * 10}%"></div></div>
+        </div>
+        <div class="copy-block">${escapeHtml(gemini.risk_summary || "Risk summary unavailable.")}</div>
+        <div class="flags">${flagMarkup || `<div class="empty">Gemini returned no risk flags.</div>`}</div>`;
+    }
+
+    function renderAnalysis() {
+      renderClaude();
+      renderGpt();
+      renderGemini();
+      const disclaimer = state.analysis?.disclaimer || state.analysis?.claude_verdict?.disclaimer;
+      el.disclaimer.textContent = disclaimer || "Market data and AI output are informational only and are not financial advice. Verify all figures before taking action.";
+    }
+
+    function renderAll() {
+      renderHeaderAndStats();
+      renderHoldings();
+      renderChart();
+      renderAnalysis();
+    }
+
+    async function loadLatest(visible = true) {
+      state.snapshot = await request("/api/snapshot/latest", {}, visible);
+      renderAll();
+    }
+
+    async function refreshHoldings(visible = true) {
+      state.snapshot = await request("/api/holdings", {}, visible);
+      renderAll();
+    }
+
+    async function runAnalysis() {
+      if (!state.snapshot) {
+        showToast("No snapshot loaded. Refresh before running analysis.");
+        return;
+      }
+      state.analysis = await request("/api/analyse", {
+        method: "POST",
+        body: JSON.stringify(state.snapshot)
+      }, true);
+      renderAnalysis();
+    }
+
+    el.refreshBtn.addEventListener("click", () => refreshHoldings(true).catch(() => {}));
+    el.analysisBtn.addEventListener("click", () => runAnalysis().catch(() => {}));
+
+    renderAll();
+    loadLatest(true).catch(() => renderAll());
+    setInterval(() => refreshHoldings(false).catch(() => {}), 5 * 60 * 1000);
+  </script>
+</body>
+</html>

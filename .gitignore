@@ -1,0 +1,27 @@
+# Secrets
+.env
+
+# Runtime data
+data/
+ruvector.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Claude / Ruflo tooling
+.claude/
+.claude-flow/
+.swarm/
+.mcp.json
+
+# Accidental files
+500`

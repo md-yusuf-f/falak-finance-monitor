@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  falak-finance-monitor:
+    build: .
+    container_name: falak-finance-monitor
+    ports:
+      - "${TAILSCALE_IP:-127.0.0.1}:8765:8765"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
