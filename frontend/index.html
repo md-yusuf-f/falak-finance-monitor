@@ -1032,18 +1032,18 @@
       <div class="analysis-grid">
         <article class="card">
           <div class="section-title">
-            <span>Claude</span>
+            <span>Groq</span>
             <span class="section-subtle">Verdict</span>
           </div>
-          <div id="claudeCard"></div>
+          <div id="groqCard"></div>
         </article>
 
         <article class="card">
           <div class="section-title">
-            <span>GPT-4o</span>
+            <span>Falak AI</span>
             <span class="section-subtle">Breakdown</span>
           </div>
-          <div id="gptCard"></div>
+          <div id="falakCard"></div>
         </article>
 
         <article class="card">
@@ -1130,8 +1130,8 @@
       holdingCount: document.getElementById("holdingCount"),
       holdingsMount: document.getElementById("holdingsMount"),
       chartLegend: document.getElementById("chartLegend"),
-      claudeCard: document.getElementById("claudeCard"),
-      gptCard: document.getElementById("gptCard"),
+      groqCard: document.getElementById("groqCard"),
+      falakCard: document.getElementById("falakCard"),
       geminiCard: document.getElementById("geminiCard"),
       disclaimer: document.getElementById("disclaimer"),
       analysisBtn: document.getElementById("analysisBtn"),
@@ -1473,43 +1473,43 @@
       return `<div class="error-box">${escapeHtml(result.error)}</div>`;
     }
 
-    function renderClaude() {
-      const claude = state.analysis?.claude_verdict;
-      if (!claude) {
-        el.claudeCard.innerHTML = `<div class="empty">No Claude verdict yet. Run analysis after a snapshot is loaded.</div>`;
+    function renderGroq() {
+      const groq = state.analysis?.groq_verdict;
+      if (!groq) {
+        el.groqCard.innerHTML = `<div class="empty">No Groq verdict yet. Run analysis after a snapshot is loaded.</div>`;
         return;
       }
-      if (claude.error) {
-        el.claudeCard.innerHTML = providerErrorBox("Claude", claude);
+      if (groq.error) {
+        el.groqCard.innerHTML = providerErrorBox("Groq", groq);
         return;
       }
-      const verdicts = Array.isArray(claude.verdicts) ? claude.verdicts : [];
+      const verdicts = Array.isArray(groq.verdicts) ? groq.verdicts : [];
       const rows = verdicts.map(item => `
         <tr>
           <td>${escapeHtml(item.symbol || "")}</td>
           <td>${verdictBadge(item.verdict)}</td>
           <td>${escapeHtml(item.reason || "")}</td>
         </tr>`).join("");
-      el.claudeCard.innerHTML = `
+      el.groqCard.innerHTML = `
         <div class="health">
           <div class="metric-label">Overall Health</div>
-          <div class="health-value">${escapeHtml(claude.overall_health || "Unavailable")}</div>
+          <div class="health-value">${escapeHtml(groq.overall_health || "Unavailable")}</div>
         </div>
-        ${rows ? `<div class="table-wrap"><table class="mini-table"><thead><tr><th>Symbol</th><th>Verdict</th><th>Reason</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Claude returned no per-holding verdicts.</div>`}
-        ${claude.disclaimer ? `<div class="copy-block">${escapeHtml(claude.disclaimer)}</div>` : ""}`;
+        ${rows ? `<div class="table-wrap"><table class="mini-table"><thead><tr><th>Symbol</th><th>Verdict</th><th>Reason</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="empty">Groq returned no per-holding verdicts.</div>`}
+        ${groq.disclaimer ? `<div class="copy-block">${escapeHtml(groq.disclaimer)}</div>` : ""}`;
     }
 
-    function renderGpt() {
-      const gpt = state.analysis?.openai_breakdown;
-      if (!gpt) {
-        el.gptCard.innerHTML = `<div class="empty">No GPT-4o breakdown yet. Run analysis after a snapshot is loaded.</div>`;
+    function renderFalak() {
+      const falak = state.analysis?.falak_breakdown;
+      if (!falak) {
+        el.falakCard.innerHTML = `<div class="empty">No Falak AI breakdown yet. Run analysis after a snapshot is loaded.</div>`;
         return;
       }
-      if (gpt.error) {
-        el.gptCard.innerHTML = providerErrorBox("OpenAI", gpt);
+      if (falak.error) {
+        el.falakCard.innerHTML = providerErrorBox("Falak AI", falak);
         return;
       }
-      const allocation = Array.isArray(gpt.allocation) ? gpt.allocation : [];
+      const allocation = Array.isArray(falak.allocation) ? falak.allocation : [];
       const rows = allocation.map(item => {
         const pct = Number(item.percentage) || 0;
         return `
@@ -1519,10 +1519,10 @@
             <div>${formatINR(item.value_inr)} / ${formatPct(pct)}</div>
           </div>`;
       }).join("");
-      el.gptCard.innerHTML = `
-        <div class="allocation-list">${rows || `<div class="empty">GPT-4o returned no allocation rows.</div>`}</div>
-        <div class="copy-block"><strong>vs_ideal</strong><br>${escapeHtml(gpt.vs_ideal || "Unavailable")}</div>
-        <div class="copy-block"><strong>top_observation</strong><br>${escapeHtml(gpt.top_observation || "Unavailable")}</div>`;
+      el.falakCard.innerHTML = `
+        <div class="allocation-list">${rows || `<div class="empty">Falak AI returned no allocation rows.</div>`}</div>
+        <div class="copy-block"><strong>vs_ideal</strong><br>${escapeHtml(falak.vs_ideal || "Unavailable")}</div>
+        <div class="copy-block"><strong>top_observation</strong><br>${escapeHtml(falak.top_observation || "Unavailable")}</div>`;
     }
 
     function renderGemini() {
@@ -1555,10 +1555,10 @@
     }
 
     function renderAnalysis() {
-      renderClaude();
-      renderGpt();
+      renderGroq();
+      renderFalak();
       renderGemini();
-      const disclaimer = state.analysis?.disclaimer || state.analysis?.claude_verdict?.disclaimer;
+      const disclaimer = state.analysis?.disclaimer || state.analysis?.groq_verdict?.disclaimer;
       el.disclaimer.textContent = disclaimer || "Market data and AI output are informational only and are not financial advice. Verify all figures before taking action.";
     }
 

@@ -27,8 +27,8 @@ class PortfolioSnapshot(BaseModel):
 
 
 class AnalysisResult(BaseModel):
-    claude_verdict: Any
-    openai_breakdown: Any
+    groq_verdict: Any
+    falak_breakdown: Any
     gemini_risks: Any
     timestamp: datetime
     disclaimer: str = "Not financial advice. For informational purposes only."

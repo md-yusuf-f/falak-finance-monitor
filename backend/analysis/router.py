@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 
 try:
     from ..models import AnalysisResult, PortfolioSnapshot
-    from . import claude_analysis, openai_analysis, gemini_analysis
+    from . import groq_analysis, falak_analysis, gemini_analysis
 except ImportError:
     from models import AnalysisResult, PortfolioSnapshot
-    from analysis import claude_analysis, openai_analysis, gemini_analysis
+    from analysis import groq_analysis, falak_analysis, gemini_analysis
 
 TIMEOUT = 30.0
 DISCLAIMER = "Not financial advice. For informational purposes only."
@@ -33,17 +33,17 @@ async def run_analysis(snapshot: PortfolioSnapshot) -> AnalysisResult:
     elif not isinstance(ts, str):
         data["timestamp"] = str(ts)
 
-    claude_task = _safe(claude_analysis.analyse(data), "Claude")
-    openai_task = _safe(openai_analysis.analyse(data), "OpenAI")
+    groq_task = _safe(groq_analysis.analyse(data), "Groq")
+    falak_task = _safe(falak_analysis.analyse(data), "Falak AI")
     gemini_task = _safe(gemini_analysis.analyse(data), "Gemini")
 
-    claude_result, openai_result, gemini_result = await asyncio.gather(
-        claude_task, openai_task, gemini_task
+    groq_result, falak_result, gemini_result = await asyncio.gather(
+        groq_task, falak_task, gemini_task
     )
 
     return AnalysisResult(
-        claude_verdict=claude_result,
-        openai_breakdown=openai_result,
+        groq_verdict=groq_result,
+        falak_breakdown=falak_result,
         gemini_risks=gemini_result,
         timestamp=datetime.now(timezone.utc),
         disclaimer=DISCLAIMER,
