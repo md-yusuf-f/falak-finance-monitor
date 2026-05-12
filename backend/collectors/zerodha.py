@@ -94,3 +94,16 @@ async def fetch_zerodha_holdings() -> list[Holding]:
         raise RuntimeError(f"Zerodha MF fetch failed: {exc}") from exc
 
     return holdings
+
+
+async def fetch_kite_trades() -> list[dict]:
+    try:
+        kite = _get_kite()
+    except ValueError:
+        raise
+    try:
+        trades = await asyncio.to_thread(kite.trades)
+        return trades or []
+    except Exception as exc:
+        log.error("Kite trades fetch failed: %s", exc)
+        raise RuntimeError(f"Kite trades fetch failed: {exc}") from exc

@@ -25,14 +25,20 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 if __package__:
-    from .db import init_db, save_snapshot, get_latest_snapshot, get_history
-    from .models import PortfolioSnapshot, AnalysisResult
-    from .collectors import fetch_zerodha_holdings, fetch_binance_holdings
+    from .db import (
+        init_db, save_snapshot, get_latest_snapshot, get_history,
+        get_alerts as db_get_alerts, save_alert, delete_alert,
+    )
+    from .models import PortfolioSnapshot, AnalysisResult, Alert
+    from .collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades
     from .analysis import run_analysis
 else:
-    from db import init_db, save_snapshot, get_latest_snapshot, get_history
-    from models import PortfolioSnapshot, AnalysisResult
-    from collectors import fetch_zerodha_holdings, fetch_binance_holdings
+    from db import (
+        init_db, save_snapshot, get_latest_snapshot, get_history,
+        get_alerts as db_get_alerts, save_alert, delete_alert,
+    )
+    from models import PortfolioSnapshot, AnalysisResult, Alert
+    from collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades
     from analysis import run_analysis
 
 limiter = Limiter(key_func=get_remote_address)
@@ -138,9 +144,9 @@ async def kite_callback(request: Request, request_token: str | None = None):
 @app.get("/api/holdings", response_model=PortfolioSnapshot)
 @limiter.limit("10/minute")
 async def get_holdings(request: Request):
-    errors = []
-    zerodha = []
-    binance = []
+    errors: list[str] = []
+    zerodha: list = []
+    binance: list = []
 
     try:
         zerodha = await fetch_zerodha_holdings()
@@ -163,12 +169,39 @@ async def get_holdings(request: Request):
     total_pnl = total_value - total_cost
     total_pnl_pct = (total_pnl / total_cost * 100) if total_cost else 0.0
 
+    alert_breaches: list[dict] = []
+    try:
+        active_alerts = await db_get_alerts()
+        for alert in active_alerts:
+            if not alert.get("enabled"):
+                continue
+            for h in all_holdings:
+                if h.symbol.upper() == alert["symbol"].upper():
+                    triggered = (
+                        alert["condition"] == "above" and h.current_price >= alert["threshold"]
+                    ) or (
+                        alert["condition"] == "below" and h.current_price <= alert["threshold"]
+                    )
+                    if triggered:
+                        alert_breaches.append({
+                            "alert_id": alert["id"],
+                            "symbol": h.symbol,
+                            "condition": alert["condition"],
+                            "threshold": alert["threshold"],
+                            "current_price": h.current_price,
+                        })
+                    break
+    except Exception as exc:
+        log.warning("Alert check failed: %s", exc)
+
     snapshot = PortfolioSnapshot(
         timestamp=datetime.now(timezone.utc),
         holdings=all_holdings,
         total_value_inr=total_value,
         total_pnl_inr=total_pnl,
         total_pnl_pct=total_pnl_pct,
+        errors=errors,
+        alert_breaches=alert_breaches,
     )
 
     data = snapshot.model_dump(mode="json")
@@ -204,6 +237,39 @@ async def analyse(request: Request, snapshot: PortfolioSnapshot):
 async def history():
     rows = await get_history(limit=30)
     return rows
+
+
+@app.get("/api/trades")
+@limiter.limit("5/minute")
+async def get_trades(request: Request):
+    try:
+        return await fetch_kite_trades()
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
+@app.get("/api/alerts")
+async def list_alerts():
+    return await db_get_alerts()
+
+
+@app.post("/api/alerts", status_code=201)
+async def create_alert(alert: Alert):
+    alert_id = await save_alert(alert.symbol, alert.condition, alert.threshold)
+    return {
+        "id": alert_id,
+        "symbol": alert.symbol.upper(),
+        "condition": alert.condition,
+        "threshold": alert.threshold,
+        "enabled": True,
+    }
+
+
+@app.delete("/api/alerts/{alert_id}", status_code=204)
+async def remove_alert(alert_id: int):
+    await delete_alert(alert_id)
 
 
 if __name__ == "__main__":

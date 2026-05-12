@@ -619,6 +619,163 @@
         text-align: left;
       }
     }
+
+    /* ── Light theme ── */
+    [data-theme="light"] {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --card-2: #eef1f6;
+      --line: rgba(0, 0, 0, 0.1);
+      --line-strong: rgba(0, 100, 200, 0.3);
+      --text: #1a1d24;
+      --muted: #5a6070;
+      --accent: #0066cc;
+      --green: #15803d;
+      --red: #b91c1c;
+      --amber: #92400e;
+      --blue: #1d4ed8;
+      --shadow: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] table,
+    [data-theme="light"] .source-panel { background: var(--card); }
+    [data-theme="light"] .source-panel-head,
+    [data-theme="light"] th { background: var(--card-2); }
+    [data-theme="light"] .copy-block,
+    [data-theme="light"] .flag,
+    [data-theme="light"] .health { background: var(--card-2); }
+    [data-theme="light"] .loader { background: #ffffff; color: var(--accent); }
+    [data-theme="light"] tbody tr:hover { background: rgba(0, 100, 200, 0.04); }
+
+    /* ── Partial error banner ── */
+    .warn-box {
+      border: 1px solid var(--amber);
+      background: rgba(240, 185, 11, 0.07);
+      color: var(--amber);
+      padding: 10px 14px;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    /* ── Snapshot diff row ── */
+    .diff-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 28px;
+      margin-top: 14px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .diff-item strong {
+      display: block;
+      font-size: clamp(14px, 1.6vw, 20px);
+      font-weight: 800;
+    }
+
+    /* ── Chart tabs ── */
+    .chart-tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tab-btn {
+      padding: 4px 12px;
+      min-height: 28px;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      transition: border-color 120ms, color 120ms;
+    }
+
+    .tab-btn.active,
+    .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Alerts ── */
+    .alert-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .alert-input {
+      flex: 1 1 120px;
+      min-width: 80px;
+      max-width: 200px;
+      height: 36px;
+      padding: 0 10px;
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .alert-input:focus { outline: none; border-color: var(--accent); }
+
+    .alert-select {
+      height: 36px;
+      padding: 0 8px;
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .alert-select:focus { outline: none; border-color: var(--accent); }
+
+    .alert-list { display: grid; gap: 8px; }
+
+    .alert-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: var(--card-2);
+      border: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .alert-item-info { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+    .btn-sm {
+      min-height: 28px;
+      padding: 0 10px;
+      font-size: 11px;
+      border: 1px solid var(--red);
+      background: transparent;
+      color: var(--red);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .btn-sm:hover { background: var(--red); color: #fff; }
+
+    /* ── Toast variants ── */
+    .toast-error { background: #24080c; border: 1px solid var(--red); color: #ffd8dd; }
+    .toast-warn { background: #1a1200; border: 1px solid var(--amber); color: #ffedb3; }
+    .toast-info { background: #00141a; border: 1px solid var(--accent); color: #b3f0ff; }
+
+    [data-theme="light"] .toast-error { background: #fff0f0; color: #7f1d1d; }
+    [data-theme="light"] .toast-warn { background: #fffbeb; color: #78350f; }
+    [data-theme="light"] .toast-info { background: #eff6ff; color: #1e40af; }
   </style>
 </head>
 <body>
@@ -637,10 +794,15 @@
         <div class="metric-label">Timestamp</div>
         <div id="timestamp" class="timestamp">No snapshot loaded</div>
       </div>
-      <div class="actions">
+      <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;">
         <button id="refreshBtn" class="btn" type="button">Refresh</button>
+        <button class="btn" type="button" onclick="window.open('/auth/kite/login','_blank')">Kite Login</button>
+        <button id="themeToggle" class="btn" type="button">Light</button>
       </div>
     </header>
+
+    <div id="errorBanner" class="warn-box" role="alert" style="display:none;"></div>
+    <div id="diffRow" class="diff-row" style="display:none;"></div>
 
     <section class="stats" aria-label="Portfolio summary">
       <article class="card">
@@ -672,7 +834,10 @@
     <article class="card chart-panel">
       <div class="section-title">
         <span>Allocation</span>
-        <span class="section-subtle">Equity / MF / Crypto</span>
+        <div class="chart-tabs">
+          <button class="tab-btn active" data-mode="type" type="button">By Type</button>
+          <button class="tab-btn" data-mode="source" type="button">By Source</button>
+        </div>
       </div>
       <div id="chartMount" class="chart-box">
         <canvas id="allocationChart" aria-label="Allocation doughnut chart"></canvas>
@@ -711,6 +876,31 @@
       </div>
     </section>
 
+    <section class="card" style="margin-top:14px;">
+      <div class="section-title">
+        <span>Today's Trades</span>
+        <button id="loadTradesBtn" class="btn" type="button" style="font-size:11px;min-height:28px;padding:0 12px;">Load Trades</button>
+      </div>
+      <div id="tradesMount"><div class="empty">Click "Load Trades" to fetch today's executed trades from Kite.</div></div>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
+      <div class="section-title">
+        <span>Price Alerts</span>
+        <span id="alertCount" class="section-subtle">0 alerts</span>
+      </div>
+      <div class="alert-form">
+        <input id="alertSymbol" class="alert-input" type="text" placeholder="SYMBOL" autocomplete="off" />
+        <select id="alertCondition" class="alert-select">
+          <option value="above">Above ▲</option>
+          <option value="below">Below ▼</option>
+        </select>
+        <input id="alertThreshold" class="alert-input" type="number" placeholder="Price (INR)" step="0.01" min="0" />
+        <button id="addAlertBtn" class="btn" type="button" style="min-height:36px;">Add Alert</button>
+      </div>
+      <div id="alertsMount"><div class="empty">No alerts configured.</div></div>
+    </section>
+
     <footer class="footer">
       <div id="disclaimer">Market data and AI output are informational only and are not financial advice. Verify all figures before taking action.</div>
       <button id="analysisBtn" class="btn secondary" type="button">Run Analysis</button>
@@ -734,6 +924,7 @@
       sortKey: "symbol",
       sortDir: "asc",
       chart: null,
+      chartMode: "type",
       loadingCount: 0,
       toastTimer: null
     };
@@ -743,6 +934,9 @@
       totalPnl: document.getElementById("totalPnl"),
       timestamp: document.getElementById("timestamp"),
       refreshBtn: document.getElementById("refreshBtn"),
+      themeToggle: document.getElementById("themeToggle"),
+      errorBanner: document.getElementById("errorBanner"),
+      diffRow: document.getElementById("diffRow"),
       equityValue: document.getElementById("equityValue"),
       mfValue: document.getElementById("mfValue"),
       cryptoValue: document.getElementById("cryptoValue"),
@@ -755,9 +949,21 @@
       geminiCard: document.getElementById("geminiCard"),
       disclaimer: document.getElementById("disclaimer"),
       analysisBtn: document.getElementById("analysisBtn"),
+      loadTradesBtn: document.getElementById("loadTradesBtn"),
+      tradesMount: document.getElementById("tradesMount"),
+      alertsMount: document.getElementById("alertsMount"),
+      alertCount: document.getElementById("alertCount"),
+      alertSymbol: document.getElementById("alertSymbol"),
+      alertCondition: document.getElementById("alertCondition"),
+      alertThreshold: document.getElementById("alertThreshold"),
+      addAlertBtn: document.getElementById("addAlertBtn"),
       overlay: document.getElementById("overlay"),
       toast: document.getElementById("toast")
     };
+
+    const SRC_KEYS = ["zerodha", "coin", "binance", "indmoney"];
+    const SRC_LABELS = { zerodha: "Zerodha", coin: "Coin", binance: "Binance", indmoney: "INDmoney" };
+    const SRC_COLORS = { zerodha: "#3861fb", coin: "#7b2ff7", binance: "#f0b90b", indmoney: "#16d681" };
 
     const columns = [
       ["symbol", "Symbol"],
@@ -829,9 +1035,9 @@
       el.overlay.classList.toggle("active", state.loadingCount > 0);
     }
 
-    function showToast(message) {
+    function showToast(message, type = "error") {
       el.toast.textContent = message;
-      el.toast.classList.add("active");
+      el.toast.className = `toast active toast-${type}`;
       clearTimeout(state.toastTimer);
       state.toastTimer = setTimeout(() => el.toast.classList.remove("active"), 5200);
     }
@@ -986,57 +1192,76 @@
       });
     }
 
-    function renderChart() {
-      const allocation = allocationFromSnapshot();
-      const values = TYPE_KEYS.map(key => allocation[key]);
-      const labels = TYPE_KEYS.map(key => TYPE_LABELS[key]);
-      const colors = TYPE_KEYS.map(key => TYPE_COLORS[key]);
-      const total = values.reduce((sum, value) => sum + value, 0);
-      const dataValues = total > 0 ? values : [1, 1, 1];
+    function allocationBySource() {
+      const totals = {};
+      for (const h of getHoldings()) {
+        const src = h.source || "unknown";
+        totals[src] = (totals[src] || 0) + (Number(h.current_value_inr) || 0);
+      }
+      return totals;
+    }
 
-      if (!state.chart) {
-        state.chart = new Chart(document.getElementById("allocationChart"), {
-          type: "doughnut",
-          data: {
-            labels,
-            datasets: [{
-              data: dataValues,
-              backgroundColor: colors,
-              borderColor: "#0a0a0f",
-              borderWidth: 3
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: "64%",
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                callbacks: {
-                  label: context => {
-                    const value = values[context.dataIndex] || 0;
-                    const pct = total ? (value / total * 100).toFixed(2) : "0.00";
-                    return `${context.label}: ${formatINR(value)} (${pct}%)`;
-                  }
+    function renderChart() {
+      let keys, labels, colors, values;
+
+      if (state.chartMode === "source") {
+        const alloc = allocationBySource();
+        keys = SRC_KEYS.filter(k => (alloc[k] || 0) > 0);
+        if (!keys.length) keys = SRC_KEYS;
+        labels = keys.map(k => SRC_LABELS[k] || k);
+        colors = keys.map(k => SRC_COLORS[k] || "#8d95a5");
+        values = keys.map(k => alloc[k] || 0);
+      } else {
+        const alloc = allocationFromSnapshot();
+        keys = TYPE_KEYS;
+        labels = TYPE_KEYS.map(k => TYPE_LABELS[k]);
+        colors = TYPE_KEYS.map(k => TYPE_COLORS[k]);
+        values = TYPE_KEYS.map(k => alloc[k]);
+      }
+
+      const total = values.reduce((s, v) => s + v, 0);
+      const dataValues = total > 0 ? values : values.map(() => 1);
+
+      if (state.chart) { state.chart.destroy(); state.chart = null; }
+
+      state.chart = new Chart(document.getElementById("allocationChart"), {
+        type: "doughnut",
+        data: {
+          labels,
+          datasets: [{
+            data: dataValues,
+            backgroundColor: colors,
+            borderColor: "var(--bg)",
+            borderWidth: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "64%",
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => {
+                  const v = values[ctx.dataIndex] || 0;
+                  const pct = total ? (v / total * 100).toFixed(2) : "0.00";
+                  return `${ctx.label}: ${formatINR(v)} (${pct}%)`;
                 }
               }
             }
           }
-        });
-      } else {
-        state.chart.data.datasets[0].data = dataValues;
-        state.chart.update();
-      }
+        }
+      });
 
-      el.chartLegend.innerHTML = TYPE_KEYS.map(key => {
-        const value = allocation[key];
-        const pct = total ? (value / total * 100).toFixed(2) : "0.00";
+      el.chartLegend.innerHTML = keys.map((k, i) => {
+        const v = values[i] || 0;
+        const pct = total ? (v / total * 100).toFixed(2) : "0.00";
         return `
           <div class="legend-row">
-            <div><span class="swatch" style="background:${TYPE_COLORS[key]}"></span>${TYPE_LABELS[key]}</div>
-            <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${TYPE_COLORS[key]}"></div></div>
-            <div>${formatINR(value)} / ${pct}%</div>
+            <div><span class="swatch" style="background:${colors[i]}"></span>${labels[i]}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${colors[i]}"></div></div>
+            <div>${formatINR(v)} / ${pct}%</div>
           </div>`;
       }).join("");
     }
@@ -1149,11 +1374,151 @@
       el.disclaimer.textContent = disclaimer || "Market data and AI output are informational only and are not financial advice. Verify all figures before taking action.";
     }
 
+    /* ── Theme ── */
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      el.themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
+      localStorage.setItem("falak-theme", theme);
+    }
+
+    /* ── Error banner ── */
+    function renderErrorBanner() {
+      const errors = state.snapshot?.errors || [];
+      if (!errors.length) { el.errorBanner.style.display = "none"; return; }
+      el.errorBanner.textContent = "⚠ Partial data — " + errors.join(" · ");
+      el.errorBanner.style.display = "block";
+    }
+
+    /* ── Alert breach toasts ── */
+    function checkAlertBreaches(snapshot) {
+      const breaches = snapshot?.alert_breaches || [];
+      if (!breaches.length) return;
+      const b = breaches[0];
+      const dir = b.condition === "above" ? "▲ above" : "▼ below";
+      let msg = `⚡ ${b.symbol} ${dir} ${formatINR(b.threshold)} — now ${formatINR(b.current_price)}`;
+      if (breaches.length > 1) msg += ` (+${breaches.length - 1} more)`;
+      showToast(msg, "warn");
+    }
+
+    /* ── Snapshot diff ── */
+    async function loadAndRenderDiff() {
+      try {
+        const history = await request("/api/history", {}, false);
+        if (!history || history.length < 2) { el.diffRow.style.display = "none"; return; }
+        const curr = history[0];
+        const prev = history[1];
+        const vDelta = (curr.total_value_inr || 0) - (prev.total_value_inr || 0);
+        const pDelta = (curr.total_pnl_inr || 0) - (prev.total_pnl_inr || 0);
+        const pPct = (curr.total_pnl_pct || 0) - (prev.total_pnl_pct || 0);
+        const prevDate = prev.timestamp ? new Date(prev.timestamp).toLocaleDateString("en-IN") : "prev";
+        el.diffRow.innerHTML = `
+          <div class="diff-item">
+            <div class="metric-label">Since ${escapeHtml(prevDate)}</div>
+            <strong class="${pnlClass(vDelta)}">${vDelta >= 0 ? "+" : ""}${formatINR(vDelta)}</strong>
+          </div>
+          <div class="diff-item">
+            <div class="metric-label">P&L Change</div>
+            <strong class="${pnlClass(pDelta)}">${pDelta >= 0 ? "+" : ""}${formatINR(pDelta)} (${pPct >= 0 ? "+" : ""}${pPct.toFixed(2)}%)</strong>
+          </div>
+          <div class="diff-item">
+            <div class="metric-label">Positions</div>
+            <strong>${(curr.holdings || []).length}</strong>
+          </div>`;
+        el.diffRow.style.display = "flex";
+      } catch (_) { el.diffRow.style.display = "none"; }
+    }
+
+    /* ── Trades ── */
+    function renderTrades(trades) {
+      if (!trades || !trades.length) {
+        el.tradesMount.innerHTML = `<div class="empty">No trades today.</div>`;
+        return;
+      }
+      const rows = trades.map(t => {
+        const isBuy = (t.transaction_type || "").toUpperCase() === "BUY";
+        const val = (t.quantity || 0) * (t.average_price || 0);
+        return `<tr>
+          <td>${escapeHtml(t.order_timestamp || t.fill_timestamp || "")}</td>
+          <td>${escapeHtml(t.tradingsymbol || "")}</td>
+          <td><span class="badge ${isBuy ? "badge-green" : "badge-red"}">${escapeHtml(t.transaction_type || "")}</span></td>
+          <td class="number">${formatNumber(t.quantity, 0)}</td>
+          <td class="number">${formatINR(t.average_price)}</td>
+          <td class="number">${formatINR(val)}</td>
+        </tr>`;
+      }).join("");
+      el.tradesMount.innerHTML = `<div class="table-wrap"><table>
+        <thead><tr><th>Time</th><th>Symbol</th><th>Type</th><th>Qty</th><th>Price</th><th>Value</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+    }
+
+    async function loadTrades() {
+      el.tradesMount.innerHTML = `<div class="empty">Loading…</div>`;
+      try {
+        const trades = await request("/api/trades", {}, false);
+        renderTrades(trades);
+      } catch (e) {
+        el.tradesMount.innerHTML = `<div class="error-box">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    /* ── Alerts ── */
+    function renderAlerts(alerts) {
+      el.alertCount.textContent = `${alerts.length} alert${alerts.length !== 1 ? "s" : ""}`;
+      if (!alerts.length) {
+        el.alertsMount.innerHTML = `<div class="empty">No alerts configured.</div>`;
+        return;
+      }
+      el.alertsMount.innerHTML = `<div class="alert-list">${alerts.map(a => `
+        <div class="alert-item">
+          <div class="alert-item-info">
+            <strong>${escapeHtml(a.symbol)}</strong>
+            <span class="badge ${a.condition === "above" ? "badge-green" : "badge-red"}">${a.condition === "above" ? "▲ ABOVE" : "▼ BELOW"}</span>
+            <span class="neutral">${formatINR(a.threshold)}</span>
+          </div>
+          <button class="btn-sm" onclick="deleteAlertById(${a.id})" type="button">Remove</button>
+        </div>`).join("")}</div>`;
+    }
+
+    async function loadAlerts() {
+      try {
+        const alerts = await request("/api/alerts", {}, false);
+        renderAlerts(alerts);
+      } catch (_) {
+        el.alertsMount.innerHTML = `<div class="error-box">Failed to load alerts.</div>`;
+      }
+    }
+
+    async function deleteAlertById(id) {
+      try {
+        await fetch(`${API_BASE}/api/alerts/${id}`, { method: "DELETE" });
+        await loadAlerts();
+      } catch (_) { showToast("Failed to remove alert."); }
+    }
+
+    async function addAlert() {
+      const symbol = el.alertSymbol.value.trim().toUpperCase();
+      const condition = el.alertCondition.value;
+      const threshold = parseFloat(el.alertThreshold.value);
+      if (!symbol || !threshold || threshold <= 0) {
+        showToast("Enter symbol and valid price.", "warn");
+        return;
+      }
+      try {
+        await request("/api/alerts", { method: "POST", body: JSON.stringify({ symbol, condition, threshold }) }, false);
+        el.alertSymbol.value = "";
+        el.alertThreshold.value = "";
+        await loadAlerts();
+        showToast(`Alert set: ${symbol} ${condition} ${formatINR(threshold)}`, "info");
+      } catch (e) { showToast(`Add alert failed: ${e.message}`); }
+    }
+
     function renderAll() {
       renderHeaderAndStats();
       renderHoldings();
       renderChart();
       renderAnalysis();
+      renderErrorBanner();
     }
 
     async function loadLatest(visible = true) {
@@ -1164,6 +1529,8 @@
     async function refreshHoldings(visible = true) {
       state.snapshot = await request("/api/holdings", {}, visible);
       renderAll();
+      checkAlertBreaches(state.snapshot);
+      loadAndRenderDiff().catch(() => {});
     }
 
     async function runAnalysis() {
@@ -1180,9 +1547,25 @@
 
     el.refreshBtn.addEventListener("click", () => refreshHoldings(true).catch(() => {}));
     el.analysisBtn.addEventListener("click", () => runAnalysis().catch(() => {}));
+    el.themeToggle.addEventListener("click", () => {
+      const curr = document.documentElement.getAttribute("data-theme") || "dark";
+      applyTheme(curr === "dark" ? "light" : "dark");
+    });
+    el.addAlertBtn.addEventListener("click", () => addAlert().catch(() => {}));
+    el.loadTradesBtn.addEventListener("click", () => loadTrades().catch(() => {}));
 
+    document.querySelectorAll(".tab-btn[data-mode]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.chartMode = btn.getAttribute("data-mode");
+        document.querySelectorAll(".tab-btn[data-mode]").forEach(b => b.classList.toggle("active", b === btn));
+        renderChart();
+      });
+    });
+
+    applyTheme(localStorage.getItem("falak-theme") || "dark");
     renderAll();
     loadLatest(true).catch(() => renderAll());
+    loadAlerts().catch(() => {});
     setInterval(() => refreshHoldings(false).catch(() => {}), 5 * 60 * 1000);
   </script>
 </body>

@@ -22,6 +22,8 @@ class PortfolioSnapshot(BaseModel):
     total_value_inr: float
     total_pnl_inr: float
     total_pnl_pct: float
+    errors: list[str] = []
+    alert_breaches: list[dict] = []
 
 
 class AnalysisResult(BaseModel):
@@ -30,3 +32,11 @@ class AnalysisResult(BaseModel):
     gemini_risks: Any
     timestamp: datetime
     disclaimer: str = "Not financial advice. For informational purposes only."
+
+
+class Alert(BaseModel):
+    id: int | None = None
+    symbol: str
+    condition: Literal["above", "below"]
+    threshold: float
+    enabled: bool = True
