@@ -1470,7 +1470,7 @@
 
     function providerErrorBox(provider, result) {
       if (!result?.error) return "";
-      return `<div class="error-box">${escapeHtml(provider)} analysis failed: ${escapeHtml(result.error)}</div>`;
+      return `<div class="error-box">${escapeHtml(result.error)}</div>`;
     }
 
     function renderClaude() {

@@ -3,7 +3,7 @@ import os
 import google.generativeai as genai
 
 DISCLAIMER = "Not financial advice. For informational purposes only."
-MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
 
 def _compute_risk_flags(holdings: list[dict], total_value: float) -> list[dict]:
