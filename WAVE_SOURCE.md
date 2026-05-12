@@ -74,66 +74,168 @@ http://127.0.0.1:8765/auth/kite/login
 - Atomic token write in `kite_callback`: writes to `.tmp` then renames to prevent partial-read race
 
 ### AI Model Fixes
-- `openai_analysis.py`: default model `gpt-5.2` → `gpt-4o` (invalid model was crashing on call)
-- `gemini_analysis.py`: default model `gemini-3-pro-preview` → `gemini-1.5-pro` (preview endpoint unstable)
+- `openai_analysis.py`: default model `gpt-5.2` → `gpt-4o`
+- `gemini_analysis.py`: default model `gemini-3-pro-preview` → `gemini-1.5-pro`
 
 ### Logging
-- `main.py`: `logging.basicConfig` configured at startup; logs startup, token save, holdings errors, analysis trigger
-- `zerodha.py`: logs equity + MF fetch failures before raising
-- `binance.py`: logs USD/INR rate fallback with actual exception
-- `router.py`: logs per-provider timeout and failure with provider name
+- `main.py`, `zerodha.py`, `binance.py`, `router.py`: structured logging throughout
 
 ### Frontend
-- Removed dead first `renderHoldings` definition (flat-table version from old design was silently overriding the source-panel version — only the correct per-source-panel version remains)
+- Removed dead duplicate `renderHoldings` definition
 
 ### Config
-- Added `.env.example` at project root documenting all env vars
 - `backend/requirements.txt`: added `slowapi>=0.1.9`
+
+---
+
+## Wave 3 — Test Suite (2026-05-12)
+
+- Added `backend/tests/conftest.py`: async fixtures, per-test isolated SQLite via `monkeypatch`
+- Added `backend/tests/test_api.py`: 9 tests — health, holdings (full/partial/both-down), analyse (valid/422), snapshot 404, history empty, OAuth 403
+- Added `backend/tests/test_collectors.py`: 6 tests — Zerodha no-token, equity/MF success, equity error, Binance no-keys/error
+- Added `backend/tests/test_analysis.py`: 4 tests — all fail, timeout, all succeed, result shape
+- Added `pytest.ini` (UTF-8 no-BOM), `backend/requirements-dev.txt`
+- 19 tests total, all passing
+
+---
+
+## Wave 4 — Features (2026-05-12)
+
+### New API Endpoints
+- `GET /api/trades` — today's Kite trades (5/min rate limit)
+- `GET /api/alerts` — list price alerts
+- `POST /api/alerts` — create price alert (symbol, above/below, threshold)
+- `DELETE /api/alerts/{id}` — remove alert
+
+### New Frontend Features
+1. **Partial error banner** — amber warning when one source (e.g. Binance) fails but others succeed
+2. **Kite Login button** — in topbar, opens `/auth/kite/login` in new tab
+3. **Dark/Light mode toggle** — persisted in `localStorage`; all futuristic effects disabled in light mode
+4. **Chart tabs** — "By Type" (equity/MF/crypto) and "By Source" (Zerodha/Coin/Binance) doughnut views
+5. **Snapshot diff row** — shows value/P&L change vs previous snapshot using `/api/history`
+6. **Today's Trades** — on-demand table from `/api/trades`
+7. **Price Alerts** — form to add alerts, list with delete, breach toasts on refresh
+
+### Backend
+- `backend/db.py`: added `alerts` table, `save_alert`, `get_alerts`, `delete_alert`
+- `backend/models.py`: added `Alert` model, `alert_breaches` field on `PortfolioSnapshot`
+- `backend/collectors/zerodha.py`: added `fetch_kite_trades()`
+- `backend/main.py`: alert breach check on every `/api/holdings` call
+
+---
+
+## Wave 5 — UI Polish (2026-05-12)
+
+### Futuristic Dark Theme Layer
+- Dot-grid radial background on body
+- Brand terminal cursor blink animation (`FALAK FINANCE MONITOR_`)
+- Topbar cyan gradient bottom line
+- Card inner glow + 1px accent border
+- Total value and P&L text-shadow glows (cyan/green/red)
+- Section title short cyan gradient underline
+- Source panel colored left borders by data source (Zerodha purple, Coin cyan, Binance gold, INDmoney green)
+- Table header dark gradient, spaced letters
+- Row hover left cyan flash
+- Button hover `box-shadow` glow
+- Thin cyan custom scrollbars
+- Toast slide-in + loader pulse animations
+- Chart box radial depth gradient
+- Analysis card top cyan border
+- Badge neon box-shadows
+- All effects stripped in light mode
+
+### Live P&L Auto-Refresh
+- "Live" toggle button in topbar
+- Pulsing green dot + countdown timer (30s interval)
+- Background refresh — no loading overlay, data updates in-place
+- Respects 10/min rate limit
+
+### Portfolio Value History Chart
+- Line chart (Chart.js) below Allocation doughnut
+- Shows `total_value_inr` over last 30 snapshots (oldest-first)
+- Single `/api/history` fetch serves both diff row and history chart
+- Re-renders with correct axis colors on dark/light theme switch
+- Updates automatically on Live mode refresh
+
+---
+
+## Wave 6 — AI Provider Swap (2026-05-12)
+
+### Removed
+- `anthropic` dependency and `claude_analysis.py` usage
+- `openai_analysis.py` (OpenAI) usage
+- `claude_verdict` / `openai_breakdown` fields from `AnalysisResult`
+
+### Added
+- `backend/analysis/groq_analysis.py` — portfolio HOLD/REVIEW/TRIM verdicts via Groq (`llama-3.3-70b-versatile`, free tier)
+- `backend/analysis/falak_analysis.py` — allocation breakdown via local Falak AI server (OpenAI-compatible, default `qwen3:8b` @ `localhost:11434/v1`)
+- `AnalysisResult` fields renamed: `groq_verdict`, `falak_breakdown`
+- `.env.example` updated with `GROQ_API_KEY`, `FALAK_AI_BASE_URL`, `FALAK_AI_MODEL`, `FALAK_AI_API_KEY`
+- Frontend cards renamed: Claude → Groq, GPT-4o → Falak AI
+
+### Bug Fixes
+- Double error prefix in analysis cards fixed (frontend was prepending "X analysis failed:" on top of backend message)
+- Gemini default model changed `gemini-1.5-pro` → `gemini-1.5-flash` (1.5-pro unavailable on v1beta API)
+
+---
+
+## Important Local Files (updated)
+
+- `frontend/index.html` — single-file dashboard (~1900 lines)
+- `backend/main.py` — FastAPI app with all endpoints, rate limiting, OAuth
+- `backend/models.py` — Pydantic models: `Holding`, `PortfolioSnapshot`, `AnalysisResult`, `Alert`
+- `backend/db.py` — aiosqlite layer: snapshots + alerts tables
+- `backend/collectors/zerodha.py` — Kite equity + MF + trades
+- `backend/collectors/binance.py` — Binance holdings (silent fail if keys absent)
+- `backend/analysis/router.py` — runs Groq + Falak AI + Gemini in parallel, 30s timeout
+- `backend/analysis/groq_analysis.py` — Groq portfolio verdict
+- `backend/analysis/falak_analysis.py` — Falak AI allocation breakdown
+- `backend/analysis/gemini_analysis.py` — Gemini risk flags
+- `backend/tests/` — 19 pytest-asyncio tests
+- `.env.example` — all required env vars documented
 
 ---
 
 ## Known Warnings
 
-- `google-generativeai` emits an upstream deprecation warning. Still runs.
-- Docker Compose warns that `version: "3.8"` is obsolete (explicitly requested earlier).
-- Docker on this Windows machine may warn about access to `C:\Users\moham\.docker\config.json`.
-- AI model names in `openai_analysis.py` and `gemini_analysis.py` are set via env vars (`OPENAI_MODEL`, `GEMINI_MODEL`, `ANTHROPIC_MODEL`) with user-chosen defaults — update `.env` if model names change.
+- `google-generativeai` emits upstream deprecation warning. Still runs.
+- Docker Compose warns `version: "3.8"` obsolete.
+- Falak AI errors if Ollama not running or model not pulled (`ollama pull qwen3:8b`).
+
+---
 
 ## To-Do
 
-1. Add visible frontend status for partial collector errors (e.g. Binance unavailable while Zerodha succeeds).
-2. Add INDmoney data path.
-   - Decide whether this is CSV import, email statement parsing, or consent-based source.
-   - Store imported INDmoney holdings with `source="indmoney"`.
-3. Improve AI analysis UX.
-   - Show clear UI message when API keys are missing.
-   - Make AI providers optional (not all-or-nothing failure).
-4. Add manual "Refresh Kite Token" button or clear link in dashboard.
-5. Add favicon route to avoid `/favicon.ico` 404 noise.
-6. Add tests for:
-   - Kite callback token save.
-   - `/api/holdings` partial success (Binance down, Zerodha up).
-   - Dashboard source grouping.
-7. Prepare Falak server deployment.
-   - Create production `.env`.
-   - Set `TAILSCALE_IP`.
-   - Set `DB_PATH=/app/data/falak.db`.
-   - Set `KITE_ACCESS_TOKEN_FILE=/app/data/kite_access_token.txt`.
-   - Re-test Docker Compose on server.
+### High Priority
+1. **INDmoney integration** — waiting on API from user. Panel placeholder exists. Store with `source="indmoney"`.
+2. **Falak server deployment**
+   - Create production `.env` with Tailscale IP binding
+   - Set `DB_PATH=/app/data/falak.db`, `KITE_ACCESS_TOKEN_FILE=/app/data/kite_access_token.txt`
+   - Update Kite redirect URL to `http://<falak-tailscale-ip>:8765/auth/kite/callback`
+   - Re-test Docker Compose on server
+
+### Medium Priority
+3. **CI/CD pipeline** — GitHub Actions: `pytest` + `ruff` lint + Docker build on push
+4. **CSV export** — `GET /api/export/csv` for holdings + snapshots (1 endpoint, easy win)
+5. **Favicon** — add `/favicon.ico` route to stop 404 noise in logs
+6. **Kite token refresh UI** — clear "Refresh Token" button/link visible on dashboard
+
+### Low Priority
+7. **React migration** — deferred; revisit when JS exceeds ~4k lines or team grows. Full plan saved.
+8. **Remove `anthropic` and `openai` (old)** packages from env if installed — `pip uninstall anthropic` safe now
+9. **Docker Compose** — remove obsolete `version: "3.8"` line
+
+---
 
 ## Deployment Notes For Falak
 
-- Use Tailscale IP binding in `.env`.
+- Use Tailscale IP binding in production `.env`.
 - Do not expose port 8765 publicly through OCI security lists.
-- The Kite redirect URL for server deployment must match the deployed host URL.
-- Current local redirect URL is:
-
-```text
-http://127.0.0.1:8765/auth/kite/callback
-```
-
-- Falak deployment redirect URL should become:
+- Kite redirect URL must match deployed host:
 
 ```text
 http://<falak-tailscale-ip>:8765/auth/kite/callback
 ```
+
+- Falak AI requires Ollama running on the same host or accessible via `FALAK_AI_BASE_URL`.
+- Groq runs in cloud — only `GROQ_API_KEY` needed, no local infra.
