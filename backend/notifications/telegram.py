@@ -180,14 +180,14 @@ class TelegramNotifier:
 
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         help_text = (
-            "🤖 *Falak Finance Bot Help*\n\n"
-            "/portfolio - Summary of holdings and total value\n"
+            "Falak Finance Bot\n\n"
+            "/portfolio - Holdings summary and total value\n"
             "/health - System status and uptime\n"
             "/analyse - Trigger AI analysis of current portfolio\n"
             "/kite_status - Check if Zerodha/Kite token is valid\n"
             "/help - Show this help message"
         )
-        await update.message.reply_text(help_text, parse_mode="Markdown")
+        await update.message.reply_text(help_text)
 
     async def unknown_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Unknown command. Use /help to see available commands.")
