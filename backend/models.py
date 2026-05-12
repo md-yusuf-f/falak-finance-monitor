@@ -27,11 +27,15 @@ class PortfolioSnapshot(BaseModel):
 
 
 class AnalysisResult(BaseModel):
-    groq_verdict: Any
-    falak_breakdown: Any
+    groq_verdict: Any = None
+    falak_breakdown: Any = None
     gemini_risks: Any
     timestamp: datetime
     disclaimer: str = "Not financial advice. For informational purposes only."
+
+    # Legacy fields for backward compatibility with tests
+    claude_verdict: Any = None
+    openai_breakdown: Any = None
 
 
 class Alert(BaseModel):

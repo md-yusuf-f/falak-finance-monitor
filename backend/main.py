@@ -24,6 +24,8 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+from contextlib import asynccontextmanager
+
 if __package__:
     from .db import (
         init_db, save_snapshot, get_latest_snapshot, get_history,
@@ -32,6 +34,8 @@ if __package__:
     from .models import PortfolioSnapshot, AnalysisResult, Alert
     from .collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades
     from .analysis import run_analysis
+    from .notifications.telegram import TelegramNotifier
+    from .scheduler import Scheduler
 else:
     from db import (
         init_db, save_snapshot, get_latest_snapshot, get_history,
@@ -40,9 +44,36 @@ else:
     from models import PortfolioSnapshot, AnalysisResult, Alert
     from collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades
     from analysis import run_analysis
+    from notifications.telegram import TelegramNotifier
+    from scheduler import Scheduler
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    
+    notifier = TelegramNotifier(token, chat_id)
+    app.state.notifier = notifier
+    
+    scheduler = Scheduler(notifier)
+    app.state.scheduler = scheduler
+    
+    if token:
+        await notifier.start_polling()
+        await scheduler.start()
+    else:
+        log.warning("TELEGRAM_BOT_TOKEN missing, skipping bot and scheduler")
+        
+    log.info("Falak Finance Monitor started")
+    yield
+    if token:
+        await scheduler.stop()
+        await notifier.stop()
 
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="Falak Finance Monitor")
+app = FastAPI(title="Falak Finance Monitor", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -62,12 +93,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def startup():
-    await init_db()
-    log.info("Falak Finance Monitor started")
 
 
 @app.get("/health")
@@ -183,13 +208,18 @@ async def get_holdings(request: Request):
                         alert["condition"] == "below" and h.current_price <= alert["threshold"]
                     )
                     if triggered:
-                        alert_breaches.append({
+                        breach = {
                             "alert_id": alert["id"],
                             "symbol": h.symbol,
                             "condition": alert["condition"],
                             "threshold": alert["threshold"],
                             "current_price": h.current_price,
-                        })
+                        }
+                        alert_breaches.append(breach)
+                        # Push to Telegram
+                        if hasattr(app.state, "notifier"):
+                            msg = f"⚠️ ALERT: {breach['symbol']} {breach['condition']} {breach['threshold']} (Current: {breach['current_price']})"
+                            await app.state.notifier.send(msg)
                     break
     except Exception as exc:
         log.warning("Alert check failed: %s", exc)
