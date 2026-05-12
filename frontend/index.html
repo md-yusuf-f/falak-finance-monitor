@@ -777,6 +777,8 @@
     [data-theme="light"] .toast-warn { background: #fffbeb; color: #78350f; }
     [data-theme="light"] .toast-info { background: #eff6ff; color: #1e40af; }
 
+    .pnl-chart-box { height: 180px; }
+
     /* ── FUTURISTIC LAYER ─────────────────────────────── */
 
     /* dot-grid background */
@@ -1013,6 +1015,16 @@
       <div id="chartLegend" class="legend"></div>
     </article>
 
+    <article class="card" style="margin-top:14px;">
+      <div class="section-title">
+        <span>Portfolio Value History</span>
+        <span id="pnlHistoryMeta" class="section-subtle"></span>
+      </div>
+      <div class="chart-box pnl-chart-box">
+        <canvas id="pnlHistoryChart" aria-label="Portfolio value history line chart"></canvas>
+      </div>
+    </article>
+
     <section class="analysis">
       <div class="analysis-head">
         <div class="section-title" style="margin:0;">AI Analysis</div>
@@ -1098,7 +1110,9 @@
       liveMode: false,
       liveRefreshTimer: null,
       liveTickTimer: null,
-      liveSecsLeft: 0
+      liveSecsLeft: 0,
+      history: [],
+      pnlChart: null
     };
 
     const el = {
@@ -1553,6 +1567,7 @@
       document.documentElement.setAttribute("data-theme", theme);
       el.themeToggle.textContent = theme === "dark" ? "Light" : "Dark";
       localStorage.setItem("falak-theme", theme);
+      if (state.history.length > 0) renderPnlChart(state.history);
     }
 
     /* ── Error banner ── */
@@ -1575,9 +1590,55 @@
     }
 
     /* ── Snapshot diff ── */
+    function renderPnlChart(history) {
+      if (!history || history.length < 2) return;
+      const data = [...history].reverse();
+      const labels = data.map(s => {
+        const d = new Date(s.timestamp);
+        return d.toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+      });
+      const values = data.map(s => s.total_value_inr || 0);
+      if (state.pnlChart) { state.pnlChart.destroy(); state.pnlChart = null; }
+      const dark = (document.documentElement.getAttribute("data-theme") || "dark") === "dark";
+      const tickColor = dark ? "#666" : "#555";
+      const gridColor = dark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.07)";
+      state.pnlChart = new Chart(document.getElementById("pnlHistoryChart"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            borderColor: "#00d4ff",
+            backgroundColor: "rgba(0,212,255,0.07)",
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            fill: true,
+            tension: 0.35
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => formatINR(ctx.parsed.y) } }
+          },
+          scales: {
+            x: { ticks: { color: tickColor, font: { size: 10 } }, grid: { color: gridColor } },
+            y: { ticks: { color: tickColor, font: { size: 10 }, callback: v => formatINR(v) }, grid: { color: gridColor } }
+          }
+        }
+      });
+      const meta = document.getElementById("pnlHistoryMeta");
+      if (meta) meta.textContent = `${data.length} snapshot${data.length === 1 ? "" : "s"}`;
+    }
+
     async function loadAndRenderDiff() {
       try {
         const history = await request("/api/history", {}, false);
+        state.history = history || [];
+        renderPnlChart(state.history);
         if (!history || history.length < 2) { el.diffRow.style.display = "none"; return; }
         const curr = history[0];
         const prev = history[1];
