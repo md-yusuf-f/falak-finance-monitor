@@ -204,38 +204,214 @@ http://127.0.0.1:8765/auth/kite/login
 
 ---
 
-## To-Do
+---
 
-### High Priority
-1. **INDmoney integration** — waiting on API from user. Panel placeholder exists. Store with `source="indmoney"`.
-2. **Falak server deployment**
-   - Create production `.env` with Tailscale IP binding
-   - Set `DB_PATH=/app/data/falak.db`, `KITE_ACCESS_TOKEN_FILE=/app/data/kite_access_token.txt`
-   - Update Kite redirect URL to `http://<falak-tailscale-ip>:8765/auth/kite/callback`
-   - Re-test Docker Compose on server
+## FALAK-FINANCE — Platform Vision (2026-05-12)
 
-### Medium Priority
-3. **CI/CD pipeline** — GitHub Actions: `pytest` + `ruff` lint + Docker build on push
-4. **CSV export** — `GET /api/export/csv` for holdings + snapshots (1 endpoint, easy win)
-5. **Favicon** — add `/favicon.ico` route to stop 404 noise in logs
-6. **Kite token refresh UI** — clear "Refresh Token" button/link visible on dashboard
+This project is evolving from a personal portfolio monitor into **FALAK-FINANCE**: a production-grade AI-assisted financial automation platform.
 
-### Low Priority
-7. **React migration** — deferred; revisit when JS exceeds ~4k lines or team grows. Full plan saved.
-8. **Remove `anthropic` and `openai` (old)** packages from env if installed — `pip uninstall anthropic` safe now
-9. **Docker Compose** — remove obsolete `version: "3.8"` line
+### Vision
+
+Production platform combining:
+- Deterministic trading strategies
+- AI-assisted analysis (local Ollama LLM — Qwen2.5/Phi-3)
+- Real-time Binance market data (BTCUSDT, ETHUSDT)
+- Portfolio monitoring (Zerodha equity/MF + Binance crypto — both kept)
+- Telegram-based interaction and alerts
+- Grafana/Prometheus observability
+- Docker microservices on OCI ARM
+
+### Core Philosophy
+- Risk management first
+- AI as assistant (veto/filter), not autonomous trader
+- Paper trading before any live execution
+- Modular, scalable, production-grade
+
+### What Waves 1–6 Built (Foundation — Complete)
+- FastAPI backend, rate limiting, CSRF, Kite OAuth
+- Zerodha equity + MF + Binance crypto holdings aggregation
+- Multi-provider AI analysis: Groq + Falak AI (Ollama) + Gemini
+- Price alerts, snapshot history, portfolio charts
+- Dark-mode SPA, live 30s auto-refresh
+- 19 async tests, Docker + Tailscale OCI deployment
 
 ---
 
-## Deployment Notes For Falak
+## Wave 7 — Telegram Bot (Next)
 
-- Use Tailscale IP binding in production `.env`.
-- Do not expose port 8765 publicly through OCI security lists.
-- Kite redirect URL must match deployed host:
+**Goal**: Notifications and interactive commands via Telegram.
 
-```text
-http://<falak-tailscale-ip>:8765/auth/kite/callback
+### Deliverables
+- `backend/notifications/telegram.py` — bot using `python-telegram-bot`
+- `backend/scheduler.py` — APScheduler in same process (no separate worker yet)
+- Commands: `/portfolio` (summary), `/health` (system status), `/analyse` (trigger AI analysis)
+- Alert breach → push Telegram message automatically
+- Daily report at configured time (portfolio snapshot summary)
+- New env vars: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+
+### Files to Create/Modify
+- `backend/notifications/telegram.py` (new)
+- `backend/scheduler.py` (new)
+- `backend/main.py` — wire scheduler startup/shutdown lifepan
+- `backend/requirements.txt` — add `python-telegram-bot>=21`, `apscheduler>=3.10`
+- `.env.example` — document new vars
+- `backend/tests/test_notifications.py` (new)
+
+### Verification
+1. Bot responds to `/portfolio` with current holdings summary
+2. Price alert breach triggers Telegram push within 30s
+3. Daily report fires at scheduled time
+4. Existing 19 tests still pass
+
+---
+
+## Wave 8 — Binance OHLCV + Technical Indicators
+
+**Goal**: Market data foundation enabling strategy engine.
+
+### Deliverables
+- `backend/collectors/market.py` — CCXT candle fetching (BTCUSDT, ETHUSDT)
+- `backend/analysis/indicators.py` — RSI, EMA (9/21/50), ATR calculations
+- New DB table: `candles(symbol, interval, timestamp, open, high, low, close, volume)`
+- Background job: collect 15m candles every 15 minutes
+- New endpoint: `GET /api/market/{symbol}/candles?interval=15m&limit=100`
+- New endpoint: `GET /api/market/{symbol}/indicators` — current RSI, EMA, ATR
+
+### Dependencies
+- `pandas>=2.0`, `pandas-ta>=0.3` for indicators
+
+### Verification
+- Fetch 100 candles BTCUSDT, compute RSI 14 — value must match TradingView within ±0.5
+
+---
+
+## Wave 9 — Strategy Engine + Paper Trading
+
+**Goal**: Deterministic trading rules with simulated execution.
+
+### Deliverables
+- `backend/strategy/` directory:
+  - `engine.py` — rule evaluator
+  - `rules.py` — RSI overbought/sold, EMA crossover, ATR-based stop rules
+  - `paper_executor.py` — simulated order placement, position tracking
+  - `risk.py` — stop-loss, take-profit, cooldown, max drawdown controls
+- New DB tables: `paper_positions`, `paper_trades`, `strategy_signals`
+- Signal → Telegram notification
+- AI veto: strategy signal blocked if Falak AI confidence < threshold
+
+### Safety Constraints
+- Max 2% capital per trade (configurable)
+- Cooldown: no signal within 4h of last signal on same symbol
+- Daily drawdown limit: halt if -5% on day
+- Paper mode only — `LIVE_TRADING=false` env guard
+
+### Verification
+- Simulated RSI oversold signal → paper buy executed → position tracked → stop-loss fires at configured %
+- AI veto test: inject bearish AI sentiment → signal blocked
+
+---
+
+## Wave 10 — PostgreSQL + Redis Migration
+
+**Goal**: Production-grade persistence and caching.
+
+### Deliverables
+- PostgreSQL replaces SQLite (`asyncpg` driver)
+- Alembic migrations: `alembic/` directory, initial migration from current schema
+- Redis cache: holdings (60s TTL), candles (30s TTL), analysis results (5min TTL)
+- `backend/cache.py` — Redis wrapper
+- `docker-compose.yml`: add `postgres` + `redis` services
+- All existing tests updated to use test PostgreSQL container
+
+### Migration Safety
+- SQLite kept as fallback until full parity verified on PostgreSQL
+- Data migration script: `scripts/migrate_sqlite_to_pg.py`
+
+---
+
+## Wave 11 — Observability
+
+**Goal**: Production monitoring and structured logging.
+
+### Deliverables
+- `prometheus-fastapi-instrumentator` — auto HTTP metrics
+- `backend/metrics.py` — custom metrics: signals generated, paper trades, AI latency, candle lag
+- `python-json-logger` — all logs as structured JSON
+- `grafana/dashboards/` — dashboard JSON (portfolio value, API latency, signal rate)
+- `docker-compose.yml`: add `prometheus` + `grafana` services
+- `/health` expansion: check DB, Redis, Binance, Ollama connectivity with latencies
+
+---
+
+## Wave 12 — AI Intelligence Upgrade
+
+**Goal**: Upgrade Ollama model for trading-specific analysis.
+
+### Deliverables
+- Switch Falak AI model: `qwen3:8b` → `qwen2.5:7b` or `phi-3-mini` (ARM-optimized)
+- `backend/analysis/trading_ai.py` — trend classification (BULLISH/BEARISH/NEUTRAL)
+- Sentiment scoring from crypto news RSS (CoinDesk, CoinTelegraph)
+- Confidence score (0–1) per signal
+- AI as FILTER: strategy signals require AI confidence ≥ 0.6 to execute
+- AI summary pushed to Telegram on demand
+
+---
+
+## Wave 13 — Microservice Split
+
+**Goal**: Proper service boundaries, independent deployment.
+
+### Services
+```
+services/
+├── market-service/      FastAPI, OHLCV, indicators, candle storage
+├── strategy-service/    Signals, paper trading, position management
+├── ai-service/          All LLM calls (Groq, Falak, Gemini)
+├── notification-service/ Telegram bot, alerts, daily reports
+└── dashboard-service/   Web UI, portfolio reads, Kite OAuth
 ```
 
-- Falak AI requires Ollama running on the same host or accessible via `FALAK_AI_BASE_URL`.
-- Groq runs in cloud — only `GROQ_API_KEY` needed, no local infra.
+- Internal communication: shared PostgreSQL + Redis (no inter-service HTTP for now)
+- `docker-compose.yml`: 5 services + postgres + redis + prometheus + grafana
+- API gateway: Nginx routing by path prefix
+
+---
+
+## Wave 14 — Production Hardening
+
+**Goal**: CI/CD, ARM deployment, secrets management.
+
+### Deliverables
+- GitHub Actions: `test → lint → build → push OCI registry → deploy`
+- OCI Ampere A1 (ARM64) — verify all Docker images build for `linux/arm64`
+- Secrets: OCI Vault integration or `.env` with `chmod 600` + restricted Docker mount
+- `pg_dump` cron → OCI Object Storage
+- Load test: 100 concurrent `/api/holdings` must complete < 2s p99
+
+---
+
+## To-Do (Active)
+
+### Wave 7 (Start Here)
+1. `backend/notifications/telegram.py` — bot setup, commands, alert push
+2. `backend/scheduler.py` — APScheduler, daily report job
+3. Wire into `backend/main.py` lifespan events
+4. Add `python-telegram-bot`, `apscheduler` to requirements
+5. Add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` to `.env.example`
+
+### Backlog (Pre-Vision)
+- **INDmoney integration** — waiting on API. Placeholder panel exists.
+- **Favicon** — `/favicon.ico` route to kill 404 log noise
+- **Docker Compose** — remove obsolete `version: "3.8"` line
+- **Kite token refresh UI** — visible button on dashboard
+
+---
+
+## Deployment Notes
+
+- Tailscale IP binding in production `.env` — never expose 8765 publicly
+- Kite redirect URL must match deployed host: `http://<tailscale-ip>:8765/auth/kite/callback`
+- Falak AI requires Ollama on same host: `ollama pull qwen2.5:7b`
+- Groq cloud: only `GROQ_API_KEY` needed
+- PostgreSQL (Wave 10+): `POSTGRES_URL=postgresql+asyncpg://...`
+- Redis (Wave 10+): `REDIS_URL=redis://localhost:6379`
