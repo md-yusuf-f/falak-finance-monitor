@@ -1,10 +1,11 @@
 import json
 import os
-from openai import AsyncOpenAI
+import logging
+import httpx
+
+logger = logging.getLogger(__name__)
 
 DISCLAIMER = "Not financial advice. For informational purposes only."
-MODEL = os.getenv("FALAK_AI_MODEL", "qwen3:8b")
-BASE_URL = os.getenv("FALAK_AI_BASE_URL", "http://localhost:11434/v1")
 
 
 def _strip_markdown(text: str) -> str:
@@ -18,28 +19,57 @@ def _strip_markdown(text: str) -> str:
 
 
 async def analyse(snapshot: dict) -> dict:
-    api_key = os.getenv("FALAK_AI_API_KEY", "ollama")
-    client = AsyncOpenAI(api_key=api_key, base_url=BASE_URL)
-    holdings_text = json.dumps(snapshot.get("holdings", []), indent=2)
+    api_key = os.getenv("FALAK_AI_API_KEY", "")
+    if not api_key:
+        return {"error": "Falak AI analysis failed: FALAK_AI_API_KEY not set", "disclaimer": DISCLAIMER}
 
+    base_url = os.getenv("FALAK_AI_BASE_URL", "http://localhost:8080")
+    holdings_json = json.dumps(snapshot.get("holdings", []), indent=2)
     prompt = (
-        "You are a portfolio analyst. Given these holdings, provide allocation by "
-        "category, compare vs an ideal allocation, and give a top observation.\n\n"
-        f"Holdings:\n{holdings_text}\n\n"
+        "You are a portfolio analyst. Given these holdings, provide allocation by category, "
+        "compare vs an ideal allocation, and give a top observation.\n\n"
+        f"Holdings:\n{holdings_json}\n\n"
         "Respond ONLY with valid JSON — no markdown, no explanation. Schema:\n"
-        '{"allocation": [{"category": "<str>", "value_inr": <number>, '
-        '"percentage": <number>}], "vs_ideal": "<string>", "top_observation": "<string>"}'
+        '{"allocation": [{"category": "<str>", "value_inr": <number>, "percentage": <number>}], '
+        '"vs_ideal": "<string>", "top_observation": "<string>"}'
     )
 
     try:
-        response = await client.chat.completions.create(
-            model=MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1024,
-        )
-        raw = _strip_markdown(response.choices[0].message.content)
-        result = json.loads(raw)
-        result["disclaimer"] = DISCLAIMER
-        return result
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{base_url}/chat",
+                headers={"X-API-KEY": api_key},
+                json={"prompt": prompt, "session_id": "falak-finance", "force_backend": "local"}
+            )
+            resp.raise_for_status()
+            raw = _strip_markdown(resp.json().get("output", ""))
+            result = json.loads(raw)
+            result["disclaimer"] = DISCLAIMER
+            return result
     except Exception as exc:
+        logger.error("Falak AI analysis error: %s", exc)
         return {"error": f"Falak AI analysis failed: {exc}", "disclaimer": DISCLAIMER}
+
+
+async def get_verdict(symbol: str) -> str:
+    api_key = os.getenv("FALAK_AI_API_KEY", "")
+    if not api_key:
+        return "HOLD"
+
+    base_url = os.getenv("FALAK_AI_BASE_URL", "http://localhost:8080")
+    prompt = f"For the asset {symbol}, reply with exactly one word — HOLD, REVIEW, or TRIM — based on current market conditions."
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{base_url}/chat",
+                headers={"X-API-KEY": api_key},
+                json={"prompt": prompt, "session_id": "falak-finance", "force_backend": "local"}
+            )
+            resp.raise_for_status()
+            output = resp.json().get("output", "").strip().upper()
+            verdict = output.split()[0] if output else "HOLD"
+            return verdict if verdict in ["HOLD", "REVIEW", "TRIM"] else "HOLD"
+    except Exception as exc:
+        logger.error("Falak AI verdict error for %s: %s", symbol, exc)
+        return "HOLD"
