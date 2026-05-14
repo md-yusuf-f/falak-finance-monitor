@@ -32,7 +32,7 @@ if __package__:
         get_alerts as db_get_alerts, save_alert, delete_alert, get_candles,
     )
     from .models import PortfolioSnapshot, AnalysisResult, Alert
-    from .collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades
+    from .collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades, fetch_indstocks_holdings
     from .analysis import run_analysis
     from .analysis.indicators import compute_indicators
     from .notifications.telegram import TelegramNotifier
@@ -43,7 +43,7 @@ else:
         get_alerts as db_get_alerts, save_alert, delete_alert, get_candles,
     )
     from models import PortfolioSnapshot, AnalysisResult, Alert
-    from collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades
+    from collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_kite_trades, fetch_indstocks_holdings
     from analysis import run_analysis
     from analysis.indicators import compute_indicators
     from notifications.telegram import TelegramNotifier
@@ -174,6 +174,7 @@ async def get_holdings(request: Request):
     errors: list[str] = []
     zerodha: list = []
     binance: list = []
+    indstocks: list = []
 
     try:
         zerodha = await fetch_zerodha_holdings()
@@ -185,12 +186,18 @@ async def get_holdings(request: Request):
     except Exception as exc:
         errors.append(f"Binance: {exc}")
 
+    if os.getenv("INDSTOCKS_ACCESS_TOKEN"):
+        try:
+            indstocks = await fetch_indstocks_holdings()
+        except Exception as exc:
+            errors.append(f"INDstocks: {exc}")
+
     if errors:
         log.warning("Holdings fetch errors: %s", "; ".join(errors))
-    if errors and not zerodha and not binance:
+    if errors and not zerodha and not binance and not indstocks:
         raise HTTPException(status_code=502, detail="; ".join(errors))
 
-    all_holdings = zerodha + binance
+    all_holdings = zerodha + binance + indstocks
     total_value = sum(h.current_value_inr for h in all_holdings)
     total_cost = sum(h.avg_cost * h.quantity for h in all_holdings)
     total_pnl = total_value - total_cost

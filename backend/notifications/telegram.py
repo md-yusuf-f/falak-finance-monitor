@@ -35,6 +35,7 @@ class TelegramNotifier:
         self.application.add_handler(CommandHandler("health", self.health_command))
         self.application.add_handler(CommandHandler("analyse", self.analyse_command))
         self.application.add_handler(CommandHandler("kite_status", self.kite_status_command))
+        self.application.add_handler(CommandHandler("indstocks_token", self.indstocks_token_command))
         self.application.add_handler(CommandHandler("help", self.help_command))
         self.application.add_handler(CommandHandler("start", self.help_command))
         # Handle unknown commands
@@ -99,6 +100,9 @@ class TelegramNotifier:
             token_file = Path(os.getenv("KITE_ACCESS_TOKEN_FILE", "data/kite_access_token.txt"))
             kite_ok = token_file.exists() and token_file.stat().st_size > 0
 
+            ind_token_file = Path(os.getenv("INDSTOCKS_ACCESS_TOKEN_FILE", "data/indstocks_access_token.txt"))
+            ind_ok = bool(os.getenv("INDSTOCKS_ACCESS_TOKEN")) or (ind_token_file.exists() and ind_token_file.stat().st_size > 0)
+
             uptime = time.time() - START_TIME
             hours, rem = divmod(int(uptime), 3600)
             minutes, seconds = divmod(rem, 60)
@@ -106,7 +110,8 @@ class TelegramNotifier:
             msg = (
                 f"🏥 *System Status*\n\n"
                 f"DB Connected: {'✅' if db_ok else '❌'}\n"
-                f"Kite Token File: {'✅' if kite_ok else '❌'}\n"
+                f"Kite Token: {'✅' if kite_ok else '❌'}\n"
+                f"INDstocks Token: {'✅' if ind_ok else '❌'}\n"
                 f"Uptime: {hours}h {minutes}m {seconds}s"
             )
             await update.message.reply_text(msg, parse_mode="Markdown")
@@ -154,6 +159,22 @@ class TelegramNotifier:
             log.error("Error in /analyse command: %s", exc)
             await update.message.reply_text(f"❌ Analysis failed: {exc}")
 
+    async def indstocks_token_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.args:
+            await update.message.reply_text("Usage: /indstocks_token <token>")
+            return
+        token = context.args[0].strip()
+        token_path = Path(os.getenv("INDSTOCKS_ACCESS_TOKEN_FILE", "data/indstocks_access_token.txt"))
+        try:
+            token_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = token_path.with_suffix(".tmp")
+            tmp.write_text(token, encoding="utf-8")
+            tmp.replace(token_path)
+            await update.message.reply_text("INDstocks token updated ✅")
+        except Exception as exc:
+            log.error("Failed to save INDstocks token: %s", exc)
+            await update.message.reply_text(f"❌ Failed to save token: {exc}")
+
     async def kite_status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             token_file = Path(os.getenv("KITE_ACCESS_TOKEN_FILE", "data/kite_access_token.txt"))
@@ -185,6 +206,7 @@ class TelegramNotifier:
             "/health - System status and uptime\n"
             "/analyse - Trigger AI analysis of current portfolio\n"
             "/kite_status - Check if Zerodha/Kite token is valid\n"
+            "/indstocks_token <token> - Update INDstocks access token\n"
             "/help - Show this help message"
         )
         await update.message.reply_text(help_text)

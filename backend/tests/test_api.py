@@ -19,6 +19,7 @@ async def test_holdings_returns_both_sources(client):
     with (
         patch("backend.main.fetch_zerodha_holdings", new_callable=AsyncMock, return_value=[z]),
         patch("backend.main.fetch_binance_holdings", new_callable=AsyncMock, return_value=[b]),
+        patch("backend.main.fetch_indstocks_holdings", new_callable=AsyncMock, return_value=[]),
     ):
         resp = await client.get("/api/holdings")
     assert resp.status_code == 200
@@ -32,6 +33,7 @@ async def test_holdings_binance_down_zerodha_up(client):
     with (
         patch("backend.main.fetch_zerodha_holdings", new_callable=AsyncMock, return_value=[z]),
         patch("backend.main.fetch_binance_holdings", new_callable=AsyncMock, side_effect=RuntimeError("Binance down")),
+        patch("backend.main.fetch_indstocks_holdings", new_callable=AsyncMock, return_value=[]),
     ):
         resp = await client.get("/api/holdings")
     assert resp.status_code == 200
@@ -44,6 +46,7 @@ async def test_holdings_both_down_returns_502(client):
     with (
         patch("backend.main.fetch_zerodha_holdings", new_callable=AsyncMock, side_effect=RuntimeError("Z down")),
         patch("backend.main.fetch_binance_holdings", new_callable=AsyncMock, side_effect=RuntimeError("B down")),
+        patch("backend.main.fetch_indstocks_holdings", new_callable=AsyncMock, side_effect=RuntimeError("IND down")),
     ):
         resp = await client.get("/api/holdings")
     assert resp.status_code == 502
