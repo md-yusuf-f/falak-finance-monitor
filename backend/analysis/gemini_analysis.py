@@ -1,9 +1,9 @@
 import json
 import os
-import google.generativeai as genai
+from google import genai
 
 DISCLAIMER = "Not financial advice. For informational purposes only."
-MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
 
 def _compute_risk_flags(holdings: list[dict], total_value: float) -> list[dict]:
@@ -47,9 +47,11 @@ def _compute_risk_flags(holdings: list[dict], total_value: float) -> list[dict]:
 
 
 async def analyse(snapshot: dict) -> dict:
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(MODEL)
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return {"error": "Gemini analysis failed: GEMINI_API_KEY not set", "disclaimer": DISCLAIMER}
 
+    client = genai.Client(api_key=api_key)
     holdings = snapshot.get("holdings", [])
     total_value = snapshot.get("total_value_inr", 0)
     seeded_flags = _compute_risk_flags(holdings, total_value)
@@ -67,7 +69,7 @@ async def analyse(snapshot: dict) -> dict:
     )
 
     try:
-        response = await model.generate_content_async(prompt)
+        response = await client.aio.models.generate_content(model=MODEL, contents=prompt)
         raw = response.text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
