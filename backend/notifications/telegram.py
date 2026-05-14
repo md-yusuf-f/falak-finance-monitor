@@ -38,6 +38,7 @@ class TelegramNotifier:
         self.application.add_handler(CommandHandler("analyse", self.analyse_command))
         self.application.add_handler(CommandHandler("kite_status", self.kite_status_command))
         self.application.add_handler(CommandHandler("indstocks_token", self.indstocks_token_command))
+        self.application.add_handler(CommandHandler("kite_token", self.kite_token_command))
         self.application.add_handler(CommandHandler("update", self.update_command))
         self.application.add_handler(CommandHandler("help", self.help_command))
         self.application.add_handler(CommandHandler("start", self.help_command))
@@ -202,6 +203,32 @@ class TelegramNotifier:
             log.error("Error in /kite_status command: %s", exc)
             await update.message.reply_text(f"❌ Error checking Kite status: {exc}")
 
+    async def kite_token_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.args:
+            await update.message.reply_text("Usage: /kite_token <request_token>\n\nGet request_token from the callback URL after Kite login.")
+            return
+        request_token = context.args[0].strip()
+        try:
+            from kiteconnect import KiteConnect
+            import asyncio
+            api_key = os.getenv("KITE_API_KEY")
+            api_secret = os.getenv("KITE_API_SECRET")
+            if not api_key or not api_secret:
+                await update.message.reply_text("KITE_API_KEY or KITE_API_SECRET not set in env.")
+                return
+            kite = KiteConnect(api_key=api_key)
+            session = await asyncio.to_thread(kite.generate_session, request_token, api_secret=api_secret)
+            access_token = session["access_token"]
+            token_path = Path(os.getenv("KITE_ACCESS_TOKEN_FILE", "data/kite_access_token.txt"))
+            token_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = token_path.with_suffix(".tmp")
+            tmp.write_text(access_token, encoding="utf-8")
+            tmp.replace(token_path)
+            await update.message.reply_text("Kite access token updated ✅")
+        except Exception as exc:
+            log.error("kite_token command failed: %s", exc)
+            await update.message.reply_text(f"Failed: {exc}")
+
     async def update_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if str(update.message.chat_id) != str(self.chat_id):
             await update.message.reply_text("Unauthorized.")
@@ -238,6 +265,7 @@ class TelegramNotifier:
             "/analyse - Trigger AI analysis of current portfolio\n"
             "/kite_status - Check if Zerodha/Kite token is valid\n"
             "/indstocks_token <token> - Update INDstocks access token\n"
+            "/kite_token <request_token> - Exchange Kite request token for access token\n"
             "/update - Pull latest code and restart\n"
             "/help - Show this help message"
         )
