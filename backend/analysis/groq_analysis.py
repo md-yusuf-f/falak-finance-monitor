@@ -36,3 +36,25 @@ async def analyse(snapshot: dict) -> dict:
         return result
     except Exception as exc:
         return {"error": f"Groq analysis failed: {exc}", "disclaimer": DISCLAIMER}
+
+
+async def get_verdict(symbol: str) -> str:
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        return "HOLD"
+    client = AsyncOpenAI(api_key=api_key, base_url=BASE_URL)
+    prompt = f"For the asset {symbol}, reply with exactly one word — HOLD, REVIEW, or TRIM — based on current market conditions."
+
+    try:
+        response = await client.chat.completions.create(
+            model=MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=10,
+        )
+        raw = response.choices[0].message.content.strip().upper()
+        # Extract the first word in case it returned more
+        verdict = raw.split()[0] if raw else "HOLD"
+        return verdict if verdict in ["HOLD", "REVIEW", "TRIM"] else "HOLD"
+    except Exception:
+        # Fail-safe default
+        return "HOLD"

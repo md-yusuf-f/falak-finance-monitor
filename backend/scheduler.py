@@ -10,6 +10,8 @@ from apscheduler.triggers.interval import IntervalTrigger
 from .notifications.telegram import TelegramNotifier
 from .collectors import fetch_zerodha_holdings, fetch_binance_holdings, fetch_candles
 from .db import save_candles, get_candles
+from .strategy import StrategyEngine, RiskManager, PaperExecutor
+from .analysis.indicators import compute_indicators
 
 log = logging.getLogger(__name__)
 
@@ -17,6 +19,9 @@ class Scheduler:
     def __init__(self, notifier: TelegramNotifier):
         self.notifier = notifier
         self.scheduler = AsyncIOScheduler()
+        self.engine = StrategyEngine()
+        self.risk = RiskManager()
+        self.executor = PaperExecutor()
 
     async def start(self):
         daily_report_cron = os.getenv("DAILY_REPORT_CRON", "0 9 * * *")
@@ -49,8 +54,16 @@ class Scheduler:
             name="candle_gap_check"
         )
 
+        # Job 5: strategy_run - every 15 minutes, offset by 5 minutes
+        strategy_start = datetime.now() + timedelta(minutes=5)
+        self.scheduler.add_job(
+            self.strategy_run,
+            IntervalTrigger(minutes=15, start_date=strategy_start),
+            name="strategy_run"
+        )
+
         self.scheduler.start()
-        log.info("Scheduler started with jobs: daily_report (%s), kite_token_check (%s), candle_collect, candle_gap_check", 
+        log.info("Scheduler started with jobs: daily_report (%s), kite_token_check (%s), candle_collect, candle_gap_check, strategy_run", 
                  daily_report_cron, kite_token_cron)
 
     async def stop(self):
@@ -137,3 +150,26 @@ class Scheduler:
                     await self.notifier.send(msg)
             except Exception as exc:
                 log.error("Error in candle_gap_check for %s: %s", symbol, exc)
+
+    async def strategy_run(self):
+        log.info("Running strategy_run job")
+        symbols = ["BTC/USDT", "ETH/USDT"]
+        for symbol in symbols:
+            try:
+                candles = await get_candles(symbol, "15m", limit=200)
+                if len(candles) < 50:
+                    log.info("Not enough candles for %s, skipping", symbol)
+                    continue
+                
+                indicators = compute_indicators(candles)
+                await self.engine.evaluate(
+                    symbol, 
+                    indicators, 
+                    candles, 
+                    self.risk, 
+                    self.executor, 
+                    self.notifier
+                )
+                await self.executor.check_stops({symbol: candles[-1]["close"]})
+            except Exception as exc:
+                log.error("Error in strategy_run for %s: %s", symbol, exc, exc_info=True)
