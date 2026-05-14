@@ -9,7 +9,8 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

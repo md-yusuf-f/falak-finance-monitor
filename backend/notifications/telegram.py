@@ -1,6 +1,8 @@
 import logging
 import os
 import asyncio
+import subprocess
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +38,7 @@ class TelegramNotifier:
         self.application.add_handler(CommandHandler("analyse", self.analyse_command))
         self.application.add_handler(CommandHandler("kite_status", self.kite_status_command))
         self.application.add_handler(CommandHandler("indstocks_token", self.indstocks_token_command))
+        self.application.add_handler(CommandHandler("update", self.update_command))
         self.application.add_handler(CommandHandler("help", self.help_command))
         self.application.add_handler(CommandHandler("start", self.help_command))
         # Handle unknown commands
@@ -199,6 +202,34 @@ class TelegramNotifier:
             log.error("Error in /kite_status command: %s", exc)
             await update.message.reply_text(f"❌ Error checking Kite status: {exc}")
 
+    async def update_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if str(update.message.chat_id) != str(self.chat_id):
+            await update.message.reply_text("Unauthorized.")
+            return
+
+        result = subprocess.run(
+            ["git", "-C", "/app", "pull", "origin", "main"],
+            capture_output=True, text=True, timeout=60
+        )
+        if result.returncode != 0:
+            await update.message.reply_text(f"Git pull failed:\n{result.stderr[:500]}")
+            return
+
+        git_output = result.stdout.strip() or "Already up to date."
+        await update.message.reply_text(f"Updated. Restarting in 3s...\n\n{git_output}")
+
+        container_name = os.getenv("CONTAINER_NAME", "falak-finance-monitor")
+
+        def _restart():
+            time.sleep(3)
+            try:
+                import docker
+                docker.from_env().containers.get(container_name).restart(timeout=10)
+            except Exception as exc:
+                log.error("Container restart failed: %s", exc)
+
+        threading.Thread(target=_restart, daemon=True).start()
+
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         help_text = (
             "Falak Finance Bot\n\n"
@@ -207,6 +238,7 @@ class TelegramNotifier:
             "/analyse - Trigger AI analysis of current portfolio\n"
             "/kite_status - Check if Zerodha/Kite token is valid\n"
             "/indstocks_token <token> - Update INDstocks access token\n"
+            "/update - Pull latest code and restart\n"
             "/help - Show this help message"
         )
         await update.message.reply_text(help_text)
