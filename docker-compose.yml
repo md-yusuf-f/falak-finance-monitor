@@ -1,11 +1,9 @@
-version: "3.8"
-
 services:
   falak-finance-monitor:
     build: .
     container_name: falak-finance-monitor
-    ports:
-      - "${TAILSCALE_IP:-127.0.0.1}:8765:8765"
+    expose:
+      - "8765"
     env_file:
       - .env
     volumes:
@@ -14,8 +12,23 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
+    networks:
+      - proxy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8765/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.falak-finance.entrypoints=websecure"
+      - "traefik.http.routers.falak-finance.rule=Host(`finance.safnetworks.com`)"
+      - "traefik.http.routers.falak-finance.tls=true"
+      - "traefik.http.routers.falak-finance.tls.certresolver=cloudflare"
+      - "traefik.http.routers.falak-finance.middlewares=authelia@file"
+      - "traefik.http.services.falak-finance.loadbalancer.server.port=8765"
+      - "traefik.docker.network=proxy"
+
+networks:
+  proxy:
+    external: true
